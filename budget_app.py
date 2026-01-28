@@ -135,16 +135,24 @@ if page == "Log Paycheck":
     
     # --- ADD NEW EXPENSE ---
     with st.expander("➕ Add New Expense", expanded=True):
+        # Row 1: Date, Description, Payment Method
         col1, col2, col3 = st.columns(3)
         with col1:
             exp_date = st.date_input("Date", value=date.today())
-            exp_category = st.selectbox("Category", ALL_CATEGORIES)
         with col2:
             exp_description = st.text_input("Description")
-            exp_amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
         with col3:
             exp_payment = st.selectbox("Payment Method", PAYMENT_METHODS)
-            if st.button("➕ Add Expense"):
+        
+        # Row 2: Category, Amount, Add Button
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            exp_category = st.selectbox("Category", ALL_CATEGORIES)
+        with col5:
+            exp_amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
+        with col6:
+            st.write("")  # Spacer to align button
+            if st.button("➕ Add Expense", use_container_width=True):
                 if exp_amount > 0:
                     new_expense = pd.DataFrame([{
                         "Date": exp_date.strftime("%m/%d/%y"),
