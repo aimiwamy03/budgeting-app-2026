@@ -271,36 +271,39 @@ if page == "Log Paycheck":
         
         with col_a:
             st.markdown("### 🏠 Needs (50%)")
+            st.caption(f"Budget: **${needs_target:,.2f}**")
             color = "normal" if needs_pct <= 100 else "inverse"
             st.metric("Spent", f"${needs_val:,.2f}", f"{needs_pct:.0f}% of budget", delta_color=color)
             st.progress(min(needs_pct / 100, 1.0))
-            if needs_pct > 100:
-                st.error(f"⚠️ Over budget by ${needs_val - needs_target:,.2f}")
-            elif needs_pct > 80:
-                st.warning("⚡ Getting close to limit")
+            remaining_needs = needs_target - needs_val
+            if remaining_needs > 0:
+                st.caption(f"💰 ${remaining_needs:,.2f} left to spend")
+            elif needs_pct > 100:
+                st.error(f"⚠️ Over by ${needs_val - needs_target:,.2f}")
         
         with col_b:
             st.markdown("### 🛍️ Wants (30%)")
+            st.caption(f"Budget: **${wants_target:,.2f}**")
             color = "normal" if wants_pct <= 100 else "inverse"
             st.metric("Spent", f"${wants_val:,.2f}", f"{wants_pct:.0f}% of budget", delta_color=color)
             st.progress(min(wants_pct / 100, 1.0))
-            if wants_pct > 100:
-                st.error(f"⚠️ Over budget by ${wants_val - wants_target:,.2f}")
-            elif wants_pct > 80:
-                st.warning("⚡ Getting close to limit")
+            remaining_wants = wants_target - wants_val
+            if remaining_wants > 0:
+                st.caption(f"💰 ${remaining_wants:,.2f} left to spend")
+            elif wants_pct > 100:
+                st.error(f"⚠️ Over by ${wants_val - wants_target:,.2f}")
         
         with col_c:
             st.markdown("### 🏦 Savings (20%)")
+            st.caption(f"Goal: **${savings_target:,.2f}**")
             color = "normal" if savings_val >= 0 else "inverse"
-            # Show savings as % of total income (not % of target)
             savings_rate_pct = (savings_val / total_income) * 100 if total_income > 0 else 0
             st.metric("Remaining", f"${savings_val:,.2f}", f"{savings_rate_pct:.0f}% of income", delta_color=color)
-            # Progress bar: green if meeting 20% goal
             st.progress(min(max(savings_rate_pct / 100, 0), 1.0))
             if savings_val < 0:
-                st.error("🚨 Overspent! Dipping into savings")
+                st.error("🚨 Overspent!")
             elif savings_rate_pct >= 20:
-                st.success("✅ Savings goal met!")
+                st.success("✅ Goal met!")
         
         # --- FINANCIAL HEALTH SCORE (Rocket Money style) ---
         st.divider()
