@@ -124,18 +124,31 @@ if page == "Log Paycheck":
     overwrite = st.checkbox("Overwrite if entry already exists", value=False)
     st.divider()
     
-    # --- EXPENSE TRACKER ---
+    # --- EXPENSE TRACKER (Synced with Google Sheets) ---
     st.subheader("📝 Expense Tracker")
-    st.caption("Add your expenses below. They'll auto-sum into Needs & Wants.")
+    st.caption("Add your expenses below. They sync to Google Sheets automatically!")
     
-    # Initialize session state for expenses if not exists
-    expense_key = f"expenses_{db_month_key}"
-    if expense_key not in st.session_state:
-        st.session_state[expense_key] = pd.DataFrame(columns=["Date", "Category", "Description", "Amount", "Payment"])
+    # Load expenses from Google Sheets (using worksheet "Expenses")
+    @st.cache_data(ttl=60)
+    def get_expenses():
+        try:
+            return conn.read(worksheet="Expenses", ttl=60)
+        except:
+            return pd.DataFrame(columns=["Month", "Date", "Category", "Description", "Amount", "Payment"])
+    
+    def save_expenses(df):
+        conn.update(worksheet="Expenses", data=df)
+        st.cache_data.clear()
+    
+    all_expenses = get_expenses()
+    # Filter for current month
+    if all_expenses is not None and not all_expenses.empty and 'Month' in all_expenses.columns:
+        expenses_df = all_expenses[all_expenses['Month'] == db_month_key].copy()
+    else:
+        expenses_df = pd.DataFrame(columns=["Month", "Date", "Category", "Description", "Amount", "Payment"])
     
     # --- ADD NEW EXPENSE ---
     with st.expander("➕ Add New Expense", expanded=True):
-        # Row 1: Date, Description, Payment Method
         col1, col2, col3 = st.columns(3)
         with col1:
             exp_date = st.date_input("Date", value=date.today())
@@ -144,43 +157,67 @@ if page == "Log Paycheck":
         with col3:
             exp_payment = st.selectbox("Payment Method", PAYMENT_METHODS)
         
-        # Row 2: Category, Amount, Add Button
         col4, col5, col6 = st.columns(3)
         with col4:
             exp_category = st.selectbox("Category", ALL_CATEGORIES)
         with col5:
             exp_amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
         with col6:
-            st.write("")  # Spacer to align button
+            st.write("")
             if st.button("➕ Add Expense", use_container_width=True):
                 if exp_amount > 0:
                     new_expense = pd.DataFrame([{
+                        "Month": db_month_key,
                         "Date": exp_date.strftime("%m/%d/%y"),
                         "Category": exp_category,
                         "Description": exp_description,
                         "Amount": exp_amount,
                         "Payment": exp_payment
                     }])
-                    st.session_state[expense_key] = pd.concat([st.session_state[expense_key], new_expense], ignore_index=True)
-                    st.success(f"Added: {exp_description} - ${exp_amount:.2f}")
+                    # Add to all expenses and save
+                    if all_expenses is None or all_expenses.empty:
+                        updated_expenses = new_expense
+                    else:
+                        updated_expenses = pd.concat([all_expenses, new_expense], ignore_index=True)
+                    save_expenses(updated_expenses)
+                    st.success(f"✅ Added & synced: {exp_description} - ${exp_amount:.2f}")
                     st.rerun()
     
-    # --- EXPENSE TABLE ---
-    expenses_df = st.session_state[expense_key]
-    
+    # --- EDITABLE EXPENSE TABLE ---
     if not expenses_df.empty:
-        st.dataframe(expenses_df, use_container_width=True, hide_index=True)
+        st.markdown("**Edit expenses below** (changes save automatically):")
         
-        # Calculate totals by category type
+        # Make Amount numeric for display
+        display_df = expenses_df.drop(columns=['Month'], errors='ignore').copy()
+        display_df['Amount'] = pd.to_numeric(display_df['Amount'], errors='coerce').fillna(0)
+        
+        edited_df = st.data_editor(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            column_config={
+                "Category": st.column_config.SelectboxColumn(options=ALL_CATEGORIES),
+                "Payment": st.column_config.SelectboxColumn(options=PAYMENT_METHODS),
+                "Amount": st.column_config.NumberColumn(format="%.2f"),
+            }
+        )
+        
+        # Save button for edits
+        if st.button("💾 Save Changes to Google Sheets"):
+            edited_df['Month'] = db_month_key
+            # Replace this month's expenses in all_expenses
+            other_months = all_expenses[all_expenses['Month'] != db_month_key] if 'Month' in all_expenses.columns else pd.DataFrame()
+            updated_all = pd.concat([other_months, edited_df], ignore_index=True)
+            save_expenses(updated_all)
+            st.success("✅ Changes saved to Google Sheets!")
+            st.rerun()
+        
+        # Calculate totals
         expenses_df['Amount'] = pd.to_numeric(expenses_df['Amount'], errors='coerce').fillna(0)
         needs_expenses = expenses_df[expenses_df['Category'].isin(NEEDS_CATEGORIES)]['Amount'].sum()
         wants_expenses = expenses_df[expenses_df['Category'].isin(WANTS_CATEGORIES)]['Amount'].sum()
         total_expenses = expenses_df['Amount'].sum()
-        
-        # Clear expenses button
-        if st.button("🗑️ Clear All Expenses"):
-            st.session_state[expense_key] = pd.DataFrame(columns=["Date", "Category", "Description", "Amount", "Payment"])
-            st.rerun()
     else:
         st.info("No expenses added yet. Add some above!")
         needs_expenses = 0.0
@@ -255,11 +292,14 @@ if page == "Log Paycheck":
         with col_c:
             st.markdown("### 🏦 Savings (20%)")
             color = "normal" if savings_val >= 0 else "inverse"
-            st.metric("Remaining", f"${savings_val:,.2f}", f"{savings_pct:.0f}% of target", delta_color=color)
-            st.progress(min(max(savings_pct / 100, 0), 1.0))
+            # Show savings as % of total income (not % of target)
+            savings_rate_pct = (savings_val / total_income) * 100 if total_income > 0 else 0
+            st.metric("Remaining", f"${savings_val:,.2f}", f"{savings_rate_pct:.0f}% of income", delta_color=color)
+            # Progress bar: green if meeting 20% goal
+            st.progress(min(max(savings_rate_pct / 100, 0), 1.0))
             if savings_val < 0:
                 st.error("🚨 Overspent! Dipping into savings")
-            elif savings_pct >= 100:
+            elif savings_rate_pct >= 20:
                 st.success("✅ Savings goal met!")
         
         # --- FINANCIAL HEALTH SCORE (Rocket Money style) ---
