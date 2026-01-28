@@ -65,7 +65,11 @@ if page == "Fill New Month":
         # Fetch existing data to check for duplicates and append
         existing_data = get_data()
         
-        if db_month_key in existing_data['Month'].values:
+        # Check if sheet is empty or missing 'Month' column
+        is_empty = existing_data is None or existing_data.empty or 'Month' not in existing_data.columns
+        month_exists = not is_empty and db_month_key in existing_data['Month'].values
+        
+        if month_exists:
             st.error(f"Data for {db_month_key} already exists in Google Sheets!")
         else:
             new_row = pd.DataFrame([{
@@ -77,8 +81,12 @@ if page == "Fill New Month":
                 "Notes": notes
             }])
             
-            # Combine and update the spreadsheet
-            updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+            # If sheet is empty, just use the new row; otherwise append
+            if is_empty:
+                updated_df = new_row
+            else:
+                updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+            
             conn.update(data=updated_df)
             st.success("Data synced to Google Sheets!")
             st.balloons()
@@ -87,7 +95,7 @@ elif page == "Analytics Dashboard":
     st.title("📈 Google Sheets Analytics")
     df = get_data()
 
-    if df.empty:
+    if df is None or df.empty or 'Month' not in df.columns:
         st.info("The spreadsheet is empty. Add data to see analytics.")
     else:
         # Latest Month Stats
