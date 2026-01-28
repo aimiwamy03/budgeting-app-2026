@@ -39,93 +39,31 @@ COLORS = {
     "success": "#0C9762",      # Green
 }
 
-# --- MODERN MINIMAL STYLING (Outfit font, clean cards) ---
+# --- MODERN MINIMAL STYLING (Clean, simple) ---
 st.markdown(f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
-    
-    /* Global font */
-    * {{ font-family: 'Outfit', sans-serif !important; }}
-    
     /* Main background */
     .stApp {{ background: {COLORS['bg']}; }}
     
-    /* Typography */
-    h1 {{ font-size: 1.5rem !important; font-weight: 600 !important; color: {COLORS['text']}; }}
-    h2 {{ font-size: 1.2rem !important; font-weight: 500 !important; color: {COLORS['text']}; }}
-    h3 {{ font-size: 1rem !important; font-weight: 500 !important; color: {COLORS['text']}; }}
-    p, span, label {{ font-size: 0.85rem !important; color: {COLORS['text_light']}; }}
-    
-    /* Metrics */
-    [data-testid="stMetricValue"] {{ font-size: 1.3rem !important; font-weight: 600 !important; color: {COLORS['text']}; }}
-    [data-testid="stMetricLabel"] {{ font-size: 0.7rem !important; font-weight: 400; color: {COLORS['text_light']}; }}
-    [data-testid="stMetricDelta"] {{ font-size: 0.65rem !important; }}
-    
-    /* Cards - clean white with subtle shadow */
-    .stMetric, [data-testid="stMetricContainer"] {{ 
-        background: {COLORS['card']}; 
-        padding: 12px 16px; 
-        border-radius: 16px; 
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        border: none;
-    }}
-    
     /* Sidebar */
-    [data-testid="stSidebar"] {{ background: {COLORS['card']}; border-right: 1px solid {COLORS['gray']}; }}
-    [data-testid="stSidebar"] h1 {{ color: {COLORS['text']}; font-weight: 600; }}
+    section[data-testid="stSidebar"] {{ background: {COLORS['card']}; }}
     
     /* Buttons - lime yellow accent */
     .stButton > button {{
-        background: {COLORS['accent1']};
-        color: {COLORS['text']};
-        border: none;
-        border-radius: 12px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        padding: 0.5rem 1.2rem;
-        transition: all 0.2s ease;
+        background: {COLORS['accent1']} !important;
+        color: {COLORS['text']} !important;
+        border: none !important;
+        border-radius: 12px !important;
     }}
     .stButton > button:hover {{ 
-        background: #E8EB6F;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(250,255,127,0.4);
-    }}
-    
-    /* Input fields */
-    .stSelectbox > div > div, .stNumberInput > div > div > input, .stTextInput > div > div > input {{
-        border-radius: 12px !important;
-        border: 1px solid {COLORS['gray']} !important;
-        font-size: 0.85rem;
+        background: #E8EB6F !important;
     }}
     
     /* Progress bars - green */
-    .stProgress > div > div {{ background: {COLORS['accent2']}; border-radius: 8px; }}
-    .stProgress {{ background: {COLORS['gray']}; border-radius: 8px; }}
-    
-    /* Expander - clean */
-    .streamlit-expanderHeader {{ 
-        font-size: 0.9rem !important; 
-        font-weight: 500;
-        color: {COLORS['text']}; 
-        background: {COLORS['accent1']};
-        border-radius: 12px;
-    }}
-    
-    /* Dataframe */
-    .stDataFrame {{ font-size: 0.8rem; border-radius: 12px; overflow: hidden; }}
+    .stProgress > div > div > div {{ background: {COLORS['accent2']} !important; }}
     
     /* Compact spacing */
-    .block-container {{ padding-top: 1rem; padding-bottom: 1rem; }}
-    .element-container {{ margin-bottom: 0.4rem; }}
-    
-    /* Divider */
-    hr {{ border-color: {COLORS['gray']}; margin: 0.6rem 0; opacity: 0.5; }}
-    
-    /* Checkbox */
-    .stCheckbox label {{ font-size: 0.8rem !important; color: {COLORS['text_light']}; }}
-    
-    /* Info/Warning/Error boxes */
-    .stAlert {{ border-radius: 12px; }}
+    .block-container {{ padding-top: 1rem !important; padding-bottom: 1rem !important; }}
     </style>
     """, unsafe_allow_html=True)
 
