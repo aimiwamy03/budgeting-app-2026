@@ -22,82 +22,110 @@ CATEGORY_ICONS = {
     "Travel": "✈️", "Personal Care": "💅", "Misc": "📦"
 }
 
-# --- COFFEE THEME COLOR PALETTE ---
+# --- MODERN MINIMAL PALETTE (Inspired by travel UI) ---
 COLORS = {
-    "bg": "#F5F0EB",           # Soft cream/latte
-    "card": "#FFFBF7",         # Warm white
-    "accent1": "#8B5A2B",      # Rich coffee brown
-    "accent2": "#D4A574",      # Caramel
-    "accent3": "#C9B896",      # Creamy beige
-    "text": "#4A3728",         # Dark roast
-    "success": "#7A9B76",      # Sage green
-    "warning": "#D4A574",      # Caramel
-    "danger": "#C17767",       # Terracotta
-    "needs": "#C17767",        # Terracotta
-    "wants": "#D4A574",        # Caramel
-    "savings": "#7A9B76",      # Sage green
+    "bg": "#F4F4F4",           # Light gray
+    "card": "#FFFFFF",         # Pure white
+    "accent1": "#FAFF7F",      # Lime yellow (highlight)
+    "accent2": "#0C9762",      # Green (positive/savings)
+    "gray": "#CBCBCB",         # Soft gray
+    "text": "#000000",         # Black text
+    "text_light": "#666666",   # Gray text
+    "needs": "#FF6B6B",        # Soft red
+    "wants": "#FAFF7F",        # Lime yellow
+    "savings": "#0C9762",      # Green
+    "danger": "#FF6B6B",       # Red
+    "warning": "#FFB84D",      # Orange
+    "success": "#0C9762",      # Green
 }
 
-# --- CUSTOM STYLING (Coffee theme - compact & cozy) ---
+# --- MODERN MINIMAL STYLING (Outfit font, clean cards) ---
 st.markdown(f"""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+    
+    /* Global font */
+    * {{ font-family: 'Outfit', sans-serif !important; }}
+    
     /* Main background */
-    .stApp {{ background: linear-gradient(135deg, {COLORS['bg']} 0%, #EDE5DC 100%); }}
+    .stApp {{ background: {COLORS['bg']}; }}
     
-    /* Compact text sizing */
-    .stApp {{ font-size: 14px; }}
-    h1 {{ font-size: 1.6rem !important; color: {COLORS['text']}; }}
-    h2 {{ font-size: 1.3rem !important; color: {COLORS['text']}; }}
-    h3 {{ font-size: 1.1rem !important; color: {COLORS['accent1']}; }}
-    p, span, label {{ font-size: 0.85rem !important; }}
+    /* Typography */
+    h1 {{ font-size: 1.5rem !important; font-weight: 600 !important; color: {COLORS['text']}; }}
+    h2 {{ font-size: 1.2rem !important; font-weight: 500 !important; color: {COLORS['text']}; }}
+    h3 {{ font-size: 1rem !important; font-weight: 500 !important; color: {COLORS['text']}; }}
+    p, span, label {{ font-size: 0.85rem !important; color: {COLORS['text_light']}; }}
     
-    /* Compact metrics */
-    [data-testid="stMetricValue"] {{ font-size: 1.2rem !important; color: {COLORS['accent1']}; }}
-    [data-testid="stMetricLabel"] {{ font-size: 0.75rem !important; }}
-    [data-testid="stMetricDelta"] {{ font-size: 0.7rem !important; }}
+    /* Metrics */
+    [data-testid="stMetricValue"] {{ font-size: 1.3rem !important; font-weight: 600 !important; color: {COLORS['text']}; }}
+    [data-testid="stMetricLabel"] {{ font-size: 0.7rem !important; font-weight: 400; color: {COLORS['text_light']}; }}
+    [data-testid="stMetricDelta"] {{ font-size: 0.65rem !important; }}
     
-    /* Cards */
-    .stMetric {{ 
+    /* Cards - clean white with subtle shadow */
+    .stMetric, [data-testid="stMetricContainer"] {{ 
         background: {COLORS['card']}; 
-        padding: 10px; 
-        border-radius: 10px; 
-        box-shadow: 0 2px 6px rgba(74,55,40,0.1);
-        border: 1px solid {COLORS['accent3']};
+        padding: 12px 16px; 
+        border-radius: 16px; 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        border: none;
     }}
     
     /* Sidebar */
-    [data-testid="stSidebar"] {{ background: {COLORS['card']}; }}
-    [data-testid="stSidebar"] h1 {{ color: {COLORS['accent1']}; }}
+    [data-testid="stSidebar"] {{ background: {COLORS['card']}; border-right: 1px solid {COLORS['gray']}; }}
+    [data-testid="stSidebar"] h1 {{ color: {COLORS['text']}; font-weight: 600; }}
     
-    /* Buttons */
+    /* Buttons - lime yellow accent */
     .stButton > button {{
         background: {COLORS['accent1']};
-        color: white;
+        color: {COLORS['text']};
         border: none;
-        border-radius: 8px;
+        border-radius: 12px;
         font-size: 0.85rem;
-        padding: 0.4rem 1rem;
+        font-weight: 500;
+        padding: 0.5rem 1.2rem;
+        transition: all 0.2s ease;
     }}
-    .stButton > button:hover {{ background: {COLORS['text']}; }}
+    .stButton > button:hover {{ 
+        background: #E8EB6F;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(250,255,127,0.4);
+    }}
     
     /* Input fields */
-    .stSelectbox, .stNumberInput, .stTextInput {{ font-size: 0.85rem; }}
+    .stSelectbox > div > div, .stNumberInput > div > div > input, .stTextInput > div > div > input {{
+        border-radius: 12px !important;
+        border: 1px solid {COLORS['gray']} !important;
+        font-size: 0.85rem;
+    }}
     
-    /* Progress bars */
-    .stProgress > div > div {{ background: {COLORS['accent2']}; }}
+    /* Progress bars - green */
+    .stProgress > div > div {{ background: {COLORS['accent2']}; border-radius: 8px; }}
+    .stProgress {{ background: {COLORS['gray']}; border-radius: 8px; }}
     
-    /* Expander */
-    .streamlit-expanderHeader {{ font-size: 0.9rem !important; color: {COLORS['accent1']}; }}
+    /* Expander - clean */
+    .streamlit-expanderHeader {{ 
+        font-size: 0.9rem !important; 
+        font-weight: 500;
+        color: {COLORS['text']}; 
+        background: {COLORS['accent1']};
+        border-radius: 12px;
+    }}
     
     /* Dataframe */
-    .stDataFrame {{ font-size: 0.8rem; }}
+    .stDataFrame {{ font-size: 0.8rem; border-radius: 12px; overflow: hidden; }}
     
-    /* Reduce spacing */
+    /* Compact spacing */
     .block-container {{ padding-top: 1rem; padding-bottom: 1rem; }}
-    .element-container {{ margin-bottom: 0.5rem; }}
+    .element-container {{ margin-bottom: 0.4rem; }}
     
     /* Divider */
-    hr {{ border-color: {COLORS['accent3']}; margin: 0.8rem 0; }}
+    hr {{ border-color: {COLORS['gray']}; margin: 0.6rem 0; opacity: 0.5; }}
+    
+    /* Checkbox */
+    .stCheckbox label {{ font-size: 0.8rem !important; color: {COLORS['text_light']}; }}
+    
+    /* Info/Warning/Error boxes */
+    .stAlert {{ border-radius: 12px; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -105,10 +133,13 @@ def get_spending_score(savings_rate):
     """Calculate a financial health score"""
     if savings_rate >= 25: return ("A+", "🌟", COLORS['success'], "Excellent! You're crushing it!")
     elif savings_rate >= 20: return ("A", "✨", COLORS['success'], "Great job! On track!")
-    elif savings_rate >= 15: return ("B", "👍", "#A8C69F", "Good! Room to grow")
+    elif savings_rate >= 15: return ("B", "👍", "#7AB85C", "Good! Room to grow")
     elif savings_rate >= 10: return ("C", "😐", COLORS['warning'], "Fair. Try to save more")
     elif savings_rate >= 5: return ("D", "⚠️", COLORS['warning'], "Warning: Low savings")
     else: return ("F", "🚨", COLORS['danger'], "Critical: Overspending!")
+
+# Chart color palette (matching the modern theme)
+CHART_COLORS = ['#0C9762', '#FAFF7F', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#74B9FF', '#A29BFE']
 
 # --- GOOGLE SHEETS CONNECTION ---
 # In your secrets.toml or Streamlit Cloud, you must provide 'spreadsheet' and 'worksheet'
@@ -221,7 +252,7 @@ if page == "Log Paycheck":
             category_totals['Icon'] = category_totals['Category'].map(lambda x: CATEGORY_ICONS.get(x, "📦") + " " + x)
             fig_pie = px.pie(category_totals, values='Amount', names='Icon', 
                            title="Where Your Money Went",
-                           color_discrete_sequence=['#8B5A2B', '#D4A574', '#C9B896', '#C17767', '#7A9B76', '#A67B5B', '#DEB887', '#BC8F8F', '#D2B48C', '#C4A484', '#BDB76B', '#8FBC8F', '#CD853F'])
+                           color_discrete_sequence=CHART_COLORS)
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_pie, use_container_width=True)
         
