@@ -124,40 +124,32 @@ page = st.sidebar.radio("Go to", ["Log Paycheck", "Analytics Dashboard"])
 current_month_name = datetime.now().strftime("%B %Y")
 
 if page == "Log Paycheck":
-    st.title("📊 Monthly Budget Entry")
-    
-    # --- SELECT MONTH ---
-    col_month, col_year = st.columns(2)
-    
-    months = ["January", "February", "March", "April", "May", "June", 
-              "July", "August", "September", "October", "November", "December"]
+    # --- SUPER COMPACT HEADER: Month/Year + Income all in one row ---
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     current_month_idx = datetime.now().month - 1
     current_year = datetime.now().year
     
-    with col_month:
-        selected_month = st.selectbox("Month", months, index=current_month_idx)
-    with col_year:
-        selected_year = st.selectbox("Year", [2025, 2026, 2027], index=[2025, 2026, 2027].index(current_year) if current_year in [2025, 2026, 2027] else 1)
+    c1, c2, c3, c4, c5, c6 = st.columns([1, 0.7, 1.2, 1.2, 1, 1])
+    with c1:
+        selected_month = st.selectbox("📅", months, index=current_month_idx, label_visibility="collapsed")
+    with c2:
+        selected_year = st.selectbox("Year", [2025, 2026, 2027], index=[2025, 2026, 2027].index(current_year) if current_year in [2025, 2026, 2027] else 1, label_visibility="collapsed")
+    with c3:
+        paycheck_1 = st.number_input("💵 Pay 1", min_value=0.0, step=100.0, format="%.0f")
+    with c4:
+        paycheck_2 = st.number_input("💵 Pay 2", min_value=0.0, step=100.0, format="%.0f")
+    with c5:
+        side_income = st.number_input("💸 Side", min_value=0.0, step=50.0, format="%.0f")
+    with c6:
+        total_income = paycheck_1 + paycheck_2 + side_income
+        st.metric("Total", f"${total_income:,.0f}", label_visibility="visible")
     
-    # Build the database key (monthly, no half-month suffix)
+    # Build the database key
+    full_months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     month_num = months.index(selected_month) + 1
     db_month_key = f"{selected_year}-{month_num:02d}"
     
-    # Option to overwrite existing entry
-    overwrite = st.checkbox("Overwrite if entry already exists", value=False)
-    
-    st.divider()
-    
-    # 1. Income Section - TWO PAYCHECKS
-    st.subheader("💵 Income (2 Paychecks per Month)")
-    col1, col2, col3 = st.columns(3)
-    paycheck_1 = col1.number_input("1st Paycheck (1st-15th)", min_value=0.0, step=100.0)
-    paycheck_2 = col2.number_input("2nd Paycheck (16th-End)", min_value=0.0, step=100.0)
-    side_income = col3.number_input("Side Income", min_value=0.0, step=50.0)
-    total_income = paycheck_1 + paycheck_2 + side_income
-    
-    st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
-    
+    overwrite = st.checkbox("Overwrite existing", value=False)
     st.divider()
     
     # --- EXPENSE TRACKER ---
