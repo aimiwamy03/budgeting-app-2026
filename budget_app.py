@@ -27,11 +27,10 @@ page = st.sidebar.radio("Go to", ["Log Paycheck", "Analytics Dashboard"])
 current_month_name = datetime.now().strftime("%B %Y")
 
 if page == "Log Paycheck":
-    st.title("📊 Log Paycheck")
+    st.title("📊 Monthly Budget Entry")
     
-    # --- SELECT PERIOD ---
-    st.subheader("📅 Select Period")
-    col_month, col_year, col_half = st.columns(3)
+    # --- SELECT MONTH ---
+    col_month, col_year = st.columns(2)
     
     months = ["January", "February", "March", "April", "May", "June", 
               "July", "August", "September", "October", "November", "December"]
@@ -42,26 +41,25 @@ if page == "Log Paycheck":
         selected_month = st.selectbox("Month", months, index=current_month_idx)
     with col_year:
         selected_year = st.selectbox("Year", [2025, 2026, 2027], index=[2025, 2026, 2027].index(current_year) if current_year in [2025, 2026, 2027] else 1)
-    with col_half:
-        pay_period = st.selectbox("Pay Period", ["1st Half (1st-15th)", "2nd Half (16th-End)"])
     
-    # Build the database key
+    # Build the database key (monthly, no half-month suffix)
     month_num = months.index(selected_month) + 1
-    period_suffix = "1" if "1st" in pay_period else "2"
-    db_month_key = f"{selected_year}-{month_num:02d}-{period_suffix}"
-    
-    st.info(f"📝 Recording for: **{selected_month} {selected_year} ({pay_period})**")
+    db_month_key = f"{selected_year}-{month_num:02d}"
     
     # Option to overwrite existing entry
     overwrite = st.checkbox("Overwrite if entry already exists", value=False)
     
     st.divider()
     
-    # 1. Income Section
-    col1, col2 = st.columns(2)
-    paycheck = col1.number_input("Paycheck Amount", min_value=0.0, step=100.0)
-    side_income = col2.number_input("Side Income", min_value=0.0, step=50.0)
-    total_income = paycheck + side_income
+    # 1. Income Section - TWO PAYCHECKS
+    st.subheader("💵 Income (2 Paychecks per Month)")
+    col1, col2, col3 = st.columns(3)
+    paycheck_1 = col1.number_input("1st Paycheck (1st-15th)", min_value=0.0, step=100.0)
+    paycheck_2 = col2.number_input("2nd Paycheck (16th-End)", min_value=0.0, step=100.0)
+    side_income = col3.number_input("Side Income", min_value=0.0, step=50.0)
+    total_income = paycheck_1 + paycheck_2 + side_income
+    
+    st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
     
     st.divider()
 
@@ -98,7 +96,10 @@ if page == "Log Paycheck":
         
         new_row = pd.DataFrame([{
             "Month": db_month_key,
-            "Income": total_income,
+            "Paycheck1": paycheck_1,
+            "Paycheck2": paycheck_2,
+            "SideIncome": side_income,
+            "TotalIncome": total_income,
             "Needs": needs_val,
             "Wants": wants_val,
             "Savings": savings_val,
@@ -106,7 +107,7 @@ if page == "Log Paycheck":
         }])
         
         if month_exists and not overwrite:
-            st.error(f"Entry for {selected_month} {selected_year} ({pay_period}) already exists! Check 'Overwrite' to update it.")
+            st.error(f"Entry for {selected_month} {selected_year} already exists! Check 'Overwrite' to update it.")
         else:
             if is_empty:
                 updated_df = new_row
@@ -121,9 +122,9 @@ if page == "Log Paycheck":
             
             conn.update(data=updated_df)
             if month_exists and overwrite:
-                st.success(f"✅ Entry for {selected_month} {selected_year} ({pay_period}) updated!")
+                st.success(f"✅ Entry for {selected_month} {selected_year} updated!")
             else:
-                st.success(f"✅ Entry for {selected_month} {selected_year} ({pay_period}) saved!")
+                st.success(f"✅ Entry for {selected_month} {selected_year} saved!")
             st.balloons()
 
 elif page == "Analytics Dashboard":
@@ -136,10 +137,13 @@ elif page == "Analytics Dashboard":
         # Latest Month Stats
         latest = df.iloc[-1]
         
+        # Handle both old 'Income' column and new 'TotalIncome' column
+        income_col = 'TotalIncome' if 'TotalIncome' in df.columns else 'Income'
+        
         c1, c2, c3 = st.columns(3)
-        c1.metric("Total Income", f"${latest['Income']:,.2f}")
-        c2.metric("Savings Rate", f"{(latest['Savings']/latest['Income'])*100:.1f}%")
-        c3.metric("Needs vs Target", f"${latest['Needs'] - (latest['Income']*0.5):,.2f}", delta_color="inverse")
+        c1.metric("Total Income", f"${latest[income_col]:,.2f}")
+        c2.metric("Savings Rate", f"{(latest['Savings']/latest[income_col])*100:.1f}%")
+        c3.metric("Needs vs Target", f"${latest['Needs'] - (latest[income_col]*0.5):,.2f}", delta_color="inverse")
 
         # Trends Chart
         st.subheader("Historical Trends")
