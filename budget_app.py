@@ -68,8 +68,13 @@ CHART_COLORS = ['#0C9762', '#FAFF7F', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'
 # --- GOOGLE SHEETS CONNECTION ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+@st.cache_data(ttl=60)
 def get_data():
-    return conn.read(ttl="10m")
+    return conn.read()
+
+def get_fresh_data():
+    """Get data without cache - use when checking before save"""
+    return conn.read(ttl=0)
 
 # --- SESSION STATE: EXPENSES ---
 if 'expenses' not in st.session_state:
@@ -251,7 +256,8 @@ if page == "📊 Budget":
     
     # Handle save
     if save_top or save_bottom:
-        existing_data = get_data()
+        # Get fresh data (no cache) to ensure accurate duplicate check
+        existing_data = get_fresh_data()
         is_empty = existing_data is None or existing_data.empty or 'Month' not in existing_data.columns
         month_exists = not is_empty and db_month_key in existing_data['Month'].values
         
@@ -273,6 +279,7 @@ if page == "📊 Budget":
             if is_empty:
                 updated_df = new_row
             elif month_exists and overwrite:
+                # Remove ALL existing rows for this month (handles duplicates too)
                 existing_data = existing_data[existing_data['Month'] != db_month_key]
                 updated_df = pd.concat([existing_data, new_row], ignore_index=True)
                 updated_df = updated_df.sort_values('Month').reset_index(drop=True)
@@ -281,6 +288,7 @@ if page == "📊 Budget":
                 updated_df = updated_df.sort_values('Month').reset_index(drop=True)
             
             conn.update(data=updated_df)
+            st.cache_data.clear()  # Clear cache after saving
             if month_exists and overwrite:
                 st.success(f"✅ Entry for {db_month_key} updated!")
             else:
