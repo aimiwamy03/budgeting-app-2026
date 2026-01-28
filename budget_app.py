@@ -2,22 +2,45 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, date
 
 # --- UI CONFIG ---
-st.set_page_config(page_title="Cloud Budget Tracker", layout="wide")
+st.set_page_config(page_title="Cloud Budget Tracker", layout="wide", page_icon="💰")
 
 # --- CATEGORY DEFINITIONS ---
 NEEDS_CATEGORIES = ["Housing", "Utilities", "Groceries", "Transportation", "Insurance", "Healthcare", "Subscriptions"]
 WANTS_CATEGORIES = ["Food/Dining", "Shopping", "Entertainment", "Travel", "Personal Care", "Misc"]
 ALL_CATEGORIES = NEEDS_CATEGORIES + WANTS_CATEGORIES
-PAYMENT_METHODS = ["Debit", "Credit", "Cash", "Venmo", "Zelle", "Other"]
+PAYMENT_METHODS = ["Debit", "Credit", "Cash", "Venmo", "Zelle", "Apple Pay", "Other"]
 
+# Category icons for visual appeal
+CATEGORY_ICONS = {
+    "Housing": "🏠", "Utilities": "💡", "Groceries": "🛒", "Transportation": "🚗",
+    "Insurance": "🛡️", "Healthcare": "🏥", "Subscriptions": "📱",
+    "Food/Dining": "🍔", "Shopping": "🛍️", "Entertainment": "🎬",
+    "Travel": "✈️", "Personal Care": "💅", "Misc": "📦"
+}
+
+# --- CUSTOM STYLING (Rocket Money inspired - clean, modern) ---
 st.markdown("""
     <style>
-    .main { background-color: #E8F6EF; }
+    .main { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%); }
+    .stMetric { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .budget-good { color: #00C853; }
+    .budget-warning { color: #FFB300; }
+    .budget-danger { color: #FF5252; }
     </style>
     """, unsafe_allow_html=True)
+
+def get_spending_score(savings_rate):
+    """Calculate a financial health score (Rocket Money style)"""
+    if savings_rate >= 25: return ("A+", "🌟", "#00C853", "Excellent! You're crushing it!")
+    elif savings_rate >= 20: return ("A", "✨", "#4CAF50", "Great job! On track with 50/30/20")
+    elif savings_rate >= 15: return ("B", "👍", "#8BC34A", "Good! Room for improvement")
+    elif savings_rate >= 10: return ("C", "😐", "#FFB300", "Fair. Try to save more")
+    elif savings_rate >= 5: return ("D", "⚠️", "#FF9800", "Warning: Low savings rate")
+    else: return ("F", "🚨", "#FF5252", "Critical: You're overspending!")
 
 # --- GOOGLE SHEETS CONNECTION ---
 # In your secrets.toml or Streamlit Cloud, you must provide 'spreadsheet' and 'worksheet'
@@ -126,33 +149,96 @@ if page == "Log Paycheck":
     
     st.divider()
     
-    # --- SUMMARY: Needs / Wants / Savings ---
-    st.subheader("📊 Monthly Summary")
+    # --- SPENDING INSIGHTS (Rocket Money style) ---
+    if not expenses_df.empty and total_income > 0:
+        st.subheader("📊 Spending Insights")
+        
+        # Category breakdown pie chart
+        col_chart, col_top = st.columns([2, 1])
+        
+        with col_chart:
+            category_totals = expenses_df.groupby('Category')['Amount'].sum().reset_index()
+            category_totals['Icon'] = category_totals['Category'].map(lambda x: CATEGORY_ICONS.get(x, "📦") + " " + x)
+            fig_pie = px.pie(category_totals, values='Amount', names='Icon', 
+                           title="Where Your Money Went",
+                           color_discrete_sequence=px.colors.qualitative.Set3)
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
+        
+        with col_top:
+            st.markdown("### 🔥 Top Spending")
+            top_categories = category_totals.nlargest(5, 'Amount')
+            for _, row in top_categories.iterrows():
+                icon = CATEGORY_ICONS.get(row['Category'], "📦")
+                st.markdown(f"{icon} **{row['Category']}**: ${row['Amount']:,.2f}")
     
-    # Use expense totals as default, but allow manual override
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.markdown("### 🏠 Needs")
-        st.metric("From Expenses", f"${needs_expenses:,.2f}")
-        needs_val = st.number_input("Manual Adjustment", value=needs_expenses, min_value=0.0, key="needs_input")
-        st.caption(f"50% target: ${total_income * 0.5:,.2f}")
-    with col_b:
-        st.markdown("### 🛍️ Wants")
-        st.metric("From Expenses", f"${wants_expenses:,.2f}")
-        wants_val = st.number_input("Manual Adjustment", value=wants_expenses, min_value=0.0, key="wants_input")
-        st.caption(f"30% target: ${total_income * 0.3:,.2f}")
+    st.divider()
     
-    # Auto-calculate savings
+    # --- BUDGET PROGRESS BARS (Rocket Money style) ---
+    st.subheader("📈 Budget Progress")
+    
+    needs_val = needs_expenses
+    wants_val = wants_expenses
     savings_val = total_income - needs_val - wants_val
     
-    with col_c:
-        st.markdown("### 🏦 Savings")
-        st.metric("Auto-calculated", f"${savings_val:,.2f}")
-        st.caption(f"20% target: ${total_income * 0.2:,.2f}")
-        if savings_val < 0:
-            st.error("⚠️ Overspent!")
-        elif savings_val >= total_income * 0.2:
-            st.success("✅ On track!")
+    if total_income > 0:
+        needs_target = total_income * 0.5
+        wants_target = total_income * 0.3
+        savings_target = total_income * 0.2
+        
+        needs_pct = min((needs_val / needs_target) * 100, 150) if needs_target > 0 else 0
+        wants_pct = min((wants_val / wants_target) * 100, 150) if wants_target > 0 else 0
+        savings_pct = min((savings_val / savings_target) * 100, 150) if savings_target > 0 else 0
+        
+        col_a, col_b, col_c = st.columns(3)
+        
+        with col_a:
+            st.markdown("### 🏠 Needs (50%)")
+            color = "normal" if needs_pct <= 100 else "inverse"
+            st.metric("Spent", f"${needs_val:,.2f}", f"{needs_pct:.0f}% of budget", delta_color=color)
+            st.progress(min(needs_pct / 100, 1.0))
+            if needs_pct > 100:
+                st.error(f"⚠️ Over budget by ${needs_val - needs_target:,.2f}")
+            elif needs_pct > 80:
+                st.warning("⚡ Getting close to limit")
+        
+        with col_b:
+            st.markdown("### 🛍️ Wants (30%)")
+            color = "normal" if wants_pct <= 100 else "inverse"
+            st.metric("Spent", f"${wants_val:,.2f}", f"{wants_pct:.0f}% of budget", delta_color=color)
+            st.progress(min(wants_pct / 100, 1.0))
+            if wants_pct > 100:
+                st.error(f"⚠️ Over budget by ${wants_val - wants_target:,.2f}")
+            elif wants_pct > 80:
+                st.warning("⚡ Getting close to limit")
+        
+        with col_c:
+            st.markdown("### 🏦 Savings (20%)")
+            color = "normal" if savings_val >= 0 else "inverse"
+            st.metric("Remaining", f"${savings_val:,.2f}", f"{savings_pct:.0f}% of target", delta_color=color)
+            st.progress(min(max(savings_pct / 100, 0), 1.0))
+            if savings_val < 0:
+                st.error("🚨 Overspent! Dipping into savings")
+            elif savings_pct >= 100:
+                st.success("✅ Savings goal met!")
+        
+        # --- FINANCIAL HEALTH SCORE (Rocket Money style) ---
+        st.divider()
+        savings_rate = (savings_val / total_income) * 100 if total_income > 0 else 0
+        grade, emoji, color, message = get_spending_score(savings_rate)
+        
+        score_col1, score_col2 = st.columns([1, 3])
+        with score_col1:
+            st.markdown(f"<h1 style='text-align: center; color: {color}; font-size: 72px;'>{grade}</h1>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; font-size: 24px;'>{emoji}</p>", unsafe_allow_html=True)
+        with score_col2:
+            st.markdown(f"### Your Money Score")
+            st.markdown(f"**{message}**")
+            st.markdown(f"Savings Rate: **{savings_rate:.1f}%** of income")
+            if savings_rate < 20:
+                st.markdown(f"💡 *Tip: Try to save ${(total_income * 0.2) - savings_val:,.2f} more to hit 20%*")
+    else:
+        st.info("Enter your income above to see budget progress")
 
     notes = st.text_area("Notes")
 
@@ -198,27 +284,104 @@ if page == "Log Paycheck":
             st.balloons()
 
 elif page == "Analytics Dashboard":
-    st.title("📈 Google Sheets Analytics")
+    st.title("📈 Financial Dashboard")
     df = get_data()
 
     if df is None or df.empty or 'Month' not in df.columns:
         st.info("The spreadsheet is empty. Add data to see analytics.")
     else:
-        # Latest Month Stats
-        latest = df.iloc[-1]
-        
         # Handle both old 'Income' column and new 'TotalIncome' column
         income_col = 'TotalIncome' if 'TotalIncome' in df.columns else 'Income'
+        latest = df.iloc[-1]
         
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Total Income", f"${latest[income_col]:,.2f}")
-        c2.metric("Savings Rate", f"{(latest['Savings']/latest[income_col])*100:.1f}%")
-        c3.metric("Needs vs Target", f"${latest['Needs'] - (latest[income_col]*0.5):,.2f}", delta_color="inverse")
-
-        # Trends Chart
-        st.subheader("Historical Trends")
-        fig = px.bar(df, x='Month', y=['Needs', 'Wants', 'Savings'], title="Spending Breakdown Over Time")
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Show the Google Sheet link for convenience
-        st.markdown(f"[🔗 Open your Google Sheet](Your_Sheet_URL_Here)")
+        # --- MONTH OVER MONTH COMPARISON (Rocket Money style) ---
+        st.subheader("📊 This Month at a Glance")
+        
+        c1, c2, c3, c4 = st.columns(4)
+        
+        # Calculate month-over-month changes
+        if len(df) >= 2:
+            prev = df.iloc[-2]
+            income_change = latest[income_col] - prev[income_col]
+            needs_change = latest['Needs'] - prev['Needs']
+            wants_change = latest['Wants'] - prev['Wants']
+            savings_change = latest['Savings'] - prev['Savings']
+        else:
+            income_change = needs_change = wants_change = savings_change = 0
+        
+        with c1:
+            st.metric("💰 Income", f"${latest[income_col]:,.2f}", 
+                     f"${income_change:+,.0f}" if income_change != 0 else None)
+        with c2:
+            st.metric("🏠 Needs", f"${latest['Needs']:,.2f}", 
+                     f"${needs_change:+,.0f}" if needs_change != 0 else None, delta_color="inverse")
+        with c3:
+            st.metric("🛍️ Wants", f"${latest['Wants']:,.2f}", 
+                     f"${wants_change:+,.0f}" if wants_change != 0 else None, delta_color="inverse")
+        with c4:
+            savings_rate = (latest['Savings']/latest[income_col])*100 if latest[income_col] > 0 else 0
+            st.metric("🏦 Savings", f"${latest['Savings']:,.2f}", 
+                     f"${savings_change:+,.0f}" if savings_change != 0 else None)
+        
+        # Financial Health Score
+        grade, emoji, color, message = get_spending_score(savings_rate)
+        st.markdown(f"### {emoji} Financial Health: **{grade}** - {message}")
+        
+        st.divider()
+        
+        # --- SPENDING TRENDS (Rocket Money style) ---
+        st.subheader("📈 Spending Trends")
+        
+        col_line, col_pie = st.columns(2)
+        
+        with col_line:
+            # Stacked area chart for spending over time
+            fig_area = go.Figure()
+            fig_area.add_trace(go.Scatter(x=df['Month'], y=df['Needs'], name='Needs', 
+                                         fill='tonexty', mode='lines', line=dict(color='#FF6B6B')))
+            fig_area.add_trace(go.Scatter(x=df['Month'], y=df['Needs'] + df['Wants'], name='Wants', 
+                                         fill='tonexty', mode='lines', line=dict(color='#4ECDC4')))
+            fig_area.add_trace(go.Scatter(x=df['Month'], y=df[income_col], name='Income', 
+                                         mode='lines+markers', line=dict(color='#45B7D1', width=3)))
+            fig_area.update_layout(title="Income vs Spending Over Time", 
+                                  xaxis_title="Month", yaxis_title="Amount ($)")
+            st.plotly_chart(fig_area, use_container_width=True)
+        
+        with col_pie:
+            # Latest month breakdown
+            breakdown = pd.DataFrame({
+                'Category': ['Needs', 'Wants', 'Savings'],
+                'Amount': [latest['Needs'], latest['Wants'], max(latest['Savings'], 0)]
+            })
+            fig_donut = px.pie(breakdown, values='Amount', names='Category', hole=0.5,
+                              title=f"Latest Month Breakdown ({latest['Month']})",
+                              color_discrete_map={'Needs': '#FF6B6B', 'Wants': '#4ECDC4', 'Savings': '#45B7D1'})
+            st.plotly_chart(fig_donut, use_container_width=True)
+        
+        st.divider()
+        
+        # --- SAVINGS PROGRESS (Rocket Money style) ---
+        st.subheader("🎯 Savings Journey")
+        
+        total_saved = df['Savings'].sum()
+        avg_savings = df['Savings'].mean()
+        months_tracked = len(df)
+        
+        s1, s2, s3 = st.columns(3)
+        s1.metric("💎 Total Saved", f"${total_saved:,.2f}")
+        s2.metric("📊 Avg Monthly Savings", f"${avg_savings:,.2f}")
+        s3.metric("📅 Months Tracked", months_tracked)
+        
+        # Savings over time line chart
+        fig_savings = px.line(df, x='Month', y='Savings', title="Savings Over Time",
+                             markers=True, line_shape='spline')
+        fig_savings.update_traces(line_color='#45B7D1', line_width=3)
+        fig_savings.add_hline(y=avg_savings, line_dash="dash", line_color="gray",
+                             annotation_text=f"Average: ${avg_savings:,.0f}")
+        st.plotly_chart(fig_savings, use_container_width=True)
+        
+        st.divider()
+        
+        # --- DATA TABLE ---
+        with st.expander("📋 View All Data"):
+            st.dataframe(df.sort_values('Month', ascending=False), use_container_width=True)
