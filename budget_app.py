@@ -27,18 +27,35 @@ page = st.sidebar.radio("Go to", ["Log Paycheck", "Analytics Dashboard"])
 current_month_name = datetime.now().strftime("%B %Y")
 
 if page == "Log Paycheck":
-    st.title(f"📊 Budget Entry: {current_month_name}")
+    st.title("📊 Log Paycheck")
     
-    # Select which half of the month (for bi-monthly paychecks)
-    pay_period = st.radio(
-        "Which paycheck is this?",
-        ["1st Half (1st-15th)", "2nd Half (16th-End)"],
-        horizontal=True
-    )
+    # --- SELECT PERIOD ---
+    st.subheader("📅 Select Period")
+    col_month, col_year, col_half = st.columns(3)
+    
+    months = ["January", "February", "March", "April", "May", "June", 
+              "July", "August", "September", "October", "November", "December"]
+    current_month_idx = datetime.now().month - 1
+    current_year = datetime.now().year
+    
+    with col_month:
+        selected_month = st.selectbox("Month", months, index=current_month_idx)
+    with col_year:
+        selected_year = st.selectbox("Year", [2025, 2026, 2027], index=[2025, 2026, 2027].index(current_year) if current_year in [2025, 2026, 2027] else 1)
+    with col_half:
+        pay_period = st.selectbox("Pay Period", ["1st Half (1st-15th)", "2nd Half (16th-End)"])
+    
+    # Build the database key
+    month_num = months.index(selected_month) + 1
     period_suffix = "1" if "1st" in pay_period else "2"
-    db_month_key = datetime.now().strftime("%Y-%m") + f"-{period_suffix}"
+    db_month_key = f"{selected_year}-{month_num:02d}-{period_suffix}"
     
-    st.caption(f"📅 Recording for: **{current_month_name} ({pay_period})**")
+    st.info(f"📝 Recording for: **{selected_month} {selected_year} ({pay_period})**")
+    
+    # Option to overwrite existing entry
+    overwrite = st.checkbox("Overwrite if entry already exists", value=False)
+    
+    st.divider()
     
     # 1. Income Section
     col1, col2 = st.columns(2)
@@ -79,26 +96,34 @@ if page == "Log Paycheck":
         is_empty = existing_data is None or existing_data.empty or 'Month' not in existing_data.columns
         month_exists = not is_empty and db_month_key in existing_data['Month'].values
         
-        if month_exists:
-            st.error(f"Data for {current_month_name} ({pay_period}) already exists!")
+        new_row = pd.DataFrame([{
+            "Month": db_month_key,
+            "Income": total_income,
+            "Needs": needs_val,
+            "Wants": wants_val,
+            "Savings": savings_val,
+            "Notes": notes
+        }])
+        
+        if month_exists and not overwrite:
+            st.error(f"Entry for {selected_month} {selected_year} ({pay_period}) already exists! Check 'Overwrite' to update it.")
         else:
-            new_row = pd.DataFrame([{
-                "Month": db_month_key,
-                "Income": total_income,
-                "Needs": needs_val,
-                "Wants": wants_val,
-                "Savings": savings_val,
-                "Notes": notes
-            }])
-            
-            # If sheet is empty, just use the new row; otherwise append
             if is_empty:
                 updated_df = new_row
+            elif month_exists and overwrite:
+                # Remove old entry and add new one
+                existing_data = existing_data[existing_data['Month'] != db_month_key]
+                updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+                updated_df = updated_df.sort_values('Month').reset_index(drop=True)
             else:
                 updated_df = pd.concat([existing_data, new_row], ignore_index=True)
+                updated_df = updated_df.sort_values('Month').reset_index(drop=True)
             
             conn.update(data=updated_df)
-            st.success("Data synced to Google Sheets!")
+            if month_exists and overwrite:
+                st.success(f"✅ Entry for {selected_month} {selected_year} ({pay_period}) updated!")
+            else:
+                st.success(f"✅ Entry for {selected_month} {selected_year} ({pay_period}) saved!")
             st.balloons()
 
 elif page == "Analytics Dashboard":
