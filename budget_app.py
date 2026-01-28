@@ -61,9 +61,6 @@ st.markdown(f"""
     
     /* Progress bars - green */
     .stProgress > div > div > div {{ background: {COLORS['accent2']} !important; }}
-    
-    /* Compact spacing */
-    .block-container {{ padding-top: 1rem !important; padding-bottom: 1rem !important; }}
     </style>
     """, unsafe_allow_html=True)
 
