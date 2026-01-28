@@ -22,13 +22,23 @@ def get_data():
 
 # --- SIDEBAR ---
 st.sidebar.title("☁️ Cloud Budget")
-page = st.sidebar.radio("Go to", ["Fill New Month", "Analytics Dashboard"])
+page = st.sidebar.radio("Go to", ["Log Paycheck", "Analytics Dashboard"])
 
-db_month_key = datetime.now().strftime("%Y-%m")
 current_month_name = datetime.now().strftime("%B %Y")
 
-if page == "Fill New Month":
+if page == "Log Paycheck":
     st.title(f"📊 Budget Entry: {current_month_name}")
+    
+    # Select which half of the month (for bi-monthly paychecks)
+    pay_period = st.radio(
+        "Which paycheck is this?",
+        ["1st Half (1st-15th)", "2nd Half (16th-End)"],
+        horizontal=True
+    )
+    period_suffix = "1" if "1st" in pay_period else "2"
+    db_month_key = datetime.now().strftime("%Y-%m") + f"-{period_suffix}"
+    
+    st.caption(f"📅 Recording for: **{current_month_name} ({pay_period})**")
     
     # 1. Income Section
     col1, col2 = st.columns(2)
@@ -70,7 +80,7 @@ if page == "Fill New Month":
         month_exists = not is_empty and db_month_key in existing_data['Month'].values
         
         if month_exists:
-            st.error(f"Data for {db_month_key} already exists in Google Sheets!")
+            st.error(f"Data for {current_month_name} ({pay_period}) already exists!")
         else:
             new_row = pd.DataFrame([{
                 "Month": db_month_key,
