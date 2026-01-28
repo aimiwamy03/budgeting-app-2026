@@ -2,10 +2,16 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+from datetime import datetime, date
 
 # --- UI CONFIG ---
 st.set_page_config(page_title="Cloud Budget Tracker", layout="wide")
+
+# --- CATEGORY DEFINITIONS ---
+NEEDS_CATEGORIES = ["Housing", "Utilities", "Groceries", "Transportation", "Insurance", "Healthcare", "Subscriptions"]
+WANTS_CATEGORIES = ["Food/Dining", "Shopping", "Entertainment", "Travel", "Personal Care", "Misc"]
+ALL_CATEGORIES = NEEDS_CATEGORIES + WANTS_CATEGORIES
+PAYMENT_METHODS = ["Debit", "Credit", "Cash", "Venmo", "Zelle", "Other"]
 
 st.markdown("""
     <style>
@@ -62,27 +68,91 @@ if page == "Log Paycheck":
     st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
     
     st.divider()
-
-    # 2. Spending Inputs (Savings = Income - Needs - Wants)
+    
+    # --- EXPENSE TRACKER ---
+    st.subheader("📝 Expense Tracker")
+    st.caption("Add your expenses below. They'll auto-sum into Needs & Wants.")
+    
+    # Initialize session state for expenses if not exists
+    expense_key = f"expenses_{db_month_key}"
+    if expense_key not in st.session_state:
+        st.session_state[expense_key] = pd.DataFrame(columns=["Date", "Category", "Description", "Amount", "Payment"])
+    
+    # --- ADD NEW EXPENSE ---
+    with st.expander("➕ Add New Expense", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            exp_date = st.date_input("Date", value=date.today())
+            exp_category = st.selectbox("Category", ALL_CATEGORIES)
+        with col2:
+            exp_description = st.text_input("Description")
+            exp_amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
+        with col3:
+            exp_payment = st.selectbox("Payment Method", PAYMENT_METHODS)
+            if st.button("➕ Add Expense"):
+                if exp_amount > 0:
+                    new_expense = pd.DataFrame([{
+                        "Date": exp_date.strftime("%m/%d/%y"),
+                        "Category": exp_category,
+                        "Description": exp_description,
+                        "Amount": exp_amount,
+                        "Payment": exp_payment
+                    }])
+                    st.session_state[expense_key] = pd.concat([st.session_state[expense_key], new_expense], ignore_index=True)
+                    st.success(f"Added: {exp_description} - ${exp_amount:.2f}")
+                    st.rerun()
+    
+    # --- EXPENSE TABLE ---
+    expenses_df = st.session_state[expense_key]
+    
+    if not expenses_df.empty:
+        st.dataframe(expenses_df, use_container_width=True, hide_index=True)
+        
+        # Calculate totals by category type
+        expenses_df['Amount'] = pd.to_numeric(expenses_df['Amount'], errors='coerce').fillna(0)
+        needs_expenses = expenses_df[expenses_df['Category'].isin(NEEDS_CATEGORIES)]['Amount'].sum()
+        wants_expenses = expenses_df[expenses_df['Category'].isin(WANTS_CATEGORIES)]['Amount'].sum()
+        total_expenses = expenses_df['Amount'].sum()
+        
+        # Clear expenses button
+        if st.button("🗑️ Clear All Expenses"):
+            st.session_state[expense_key] = pd.DataFrame(columns=["Date", "Category", "Description", "Amount", "Payment"])
+            st.rerun()
+    else:
+        st.info("No expenses added yet. Add some above!")
+        needs_expenses = 0.0
+        wants_expenses = 0.0
+        total_expenses = 0.0
+    
+    st.divider()
+    
+    # --- SUMMARY: Needs / Wants / Savings ---
+    st.subheader("📊 Monthly Summary")
+    
+    # Use expense totals as default, but allow manual override
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        st.subheader("🏠 Needs")
-        needs_val = st.number_input("Rent, Bills, Groceries, etc.", min_value=0.0)
+        st.markdown("### 🏠 Needs")
+        st.metric("From Expenses", f"${needs_expenses:,.2f}")
+        needs_val = st.number_input("Manual Adjustment", value=needs_expenses, min_value=0.0, key="needs_input")
         st.caption(f"50% target: ${total_income * 0.5:,.2f}")
     with col_b:
-        st.subheader("🛍️ Wants")
-        wants_val = st.number_input("Fun, Dining, Shopping, etc.", min_value=0.0)
+        st.markdown("### 🛍️ Wants")
+        st.metric("From Expenses", f"${wants_expenses:,.2f}")
+        wants_val = st.number_input("Manual Adjustment", value=wants_expenses, min_value=0.0, key="wants_input")
         st.caption(f"30% target: ${total_income * 0.3:,.2f}")
     
-    # Auto-calculate savings: whatever is left stays in savings
+    # Auto-calculate savings
     savings_val = total_income - needs_val - wants_val
     
     with col_c:
-        st.subheader("🏦 Savings")
+        st.markdown("### 🏦 Savings")
         st.metric("Auto-calculated", f"${savings_val:,.2f}")
         st.caption(f"20% target: ${total_income * 0.2:,.2f}")
         if savings_val < 0:
             st.error("⚠️ Overspent!")
+        elif savings_val >= total_income * 0.2:
+            st.success("✅ On track!")
 
     notes = st.text_area("Notes")
 
