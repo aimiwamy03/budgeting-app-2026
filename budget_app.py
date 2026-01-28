@@ -38,20 +38,26 @@ if page == "Fill New Month":
     
     st.divider()
 
-    # 2. 50/30/20 Inputs
+    # 2. Spending Inputs (Savings = Income - Needs - Wants)
     col_a, col_b, col_c = st.columns(3)
     with col_a:
-        st.subheader("🏠 Needs (50%)")
-        needs_val = st.number_input("Actual Needs Spent", min_value=0.0)
-        st.caption(f"Target: ${total_income * 0.5:,.2f}")
+        st.subheader("🏠 Needs")
+        needs_val = st.number_input("Rent, Bills, Groceries, etc.", min_value=0.0)
+        st.caption(f"50% target: ${total_income * 0.5:,.2f}")
     with col_b:
-        st.subheader("🛍️ Wants (30%)")
-        wants_val = st.number_input("Actual Wants Spent", min_value=0.0)
-        st.caption(f"Target: ${total_income * 0.3:,.2f}")
+        st.subheader("🛍️ Wants")
+        wants_val = st.number_input("Fun, Dining, Shopping, etc.", min_value=0.0)
+        st.caption(f"30% target: ${total_income * 0.3:,.2f}")
+    
+    # Auto-calculate savings: whatever is left stays in savings
+    savings_val = total_income - needs_val - wants_val
+    
     with col_c:
-        st.subheader("🏦 Savings (20%)")
-        savings_val = st.number_input("Actual Savings", min_value=0.0)
-        st.caption(f"Target: ${total_income * 0.2:,.2f}")
+        st.subheader("🏦 Savings")
+        st.metric("Auto-calculated", f"${savings_val:,.2f}")
+        st.caption(f"20% target: ${total_income * 0.2:,.2f}")
+        if savings_val < 0:
+            st.error("⚠️ Overspent!")
 
     notes = st.text_area("Notes")
 
