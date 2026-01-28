@@ -22,21 +22,21 @@ CATEGORY_ICONS = {
     "Travel": "✈️", "Personal Care": "💅", "Misc": "📦"
 }
 
-# --- MODERN MINIMAL PALETTE (Inspired by travel UI) ---
+# --- COFFEE PALETTE ---
 COLORS = {
-    "bg": "#F4F4F4",           # Light gray
+    "bg": "#F5EDE4",           # Soft latte/cream
     "card": "#FFFFFF",         # Pure white
     "accent1": "#FAFF7F",      # Lime yellow (highlight)
     "accent2": "#0C9762",      # Green (positive/savings)
-    "gray": "#CBCBCB",         # Soft gray
-    "text": "#000000",         # Black text
-    "text_light": "#666666",   # Gray text
-    "needs": "#FF6B6B",        # Soft red
-    "wants": "#FAFF7F",        # Lime yellow
-    "savings": "#0C9762",      # Green
-    "danger": "#FF6B6B",       # Red
-    "warning": "#FFB84D",      # Orange
-    "success": "#0C9762",      # Green
+    "gray": "#D4C4B5",         # Warm gray/beige
+    "text": "#3D2B1F",         # Coffee brown text
+    "text_light": "#8B7355",   # Lighter brown
+    "needs": "#C17767",        # Terracotta
+    "wants": "#D4A574",        # Caramel
+    "savings": "#7A9B76",      # Sage green
+    "danger": "#C17767",       # Terracotta
+    "warning": "#D4A574",      # Caramel
+    "success": "#7A9B76",      # Sage green
 }
 
 # --- MODERN MINIMAL STYLING (Clean, simple) ---
