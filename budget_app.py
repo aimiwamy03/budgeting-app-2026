@@ -12,7 +12,7 @@ st.set_page_config(page_title="Cloud Budget Tracker", layout="wide", page_icon="
 NEEDS_CATEGORIES = ["Housing", "Utilities", "Groceries", "Transportation", "Insurance", "Healthcare", "Subscriptions"]
 WANTS_CATEGORIES = ["Food/Dining", "Shopping", "Entertainment", "Travel", "Personal Care", "Misc"]
 ALL_CATEGORIES = NEEDS_CATEGORIES + WANTS_CATEGORIES
-PAYMENT_METHODS = ["Debit", "Credit", "Cash", "Venmo", "Zelle", "Apple Pay", "Other"]
+PAYMENT_METHODS = ["Credit", "Debit", "Cash", "Venmo", "Zelle", "Apple Pay", "Other"]  # Credit first (default)
 
 # Category icons for visual appeal
 CATEGORY_ICONS = {
@@ -22,25 +22,93 @@ CATEGORY_ICONS = {
     "Travel": "✈️", "Personal Care": "💅", "Misc": "📦"
 }
 
-# --- CUSTOM STYLING (Rocket Money inspired - clean, modern) ---
-st.markdown("""
+# --- COFFEE THEME COLOR PALETTE ---
+COLORS = {
+    "bg": "#F5F0EB",           # Soft cream/latte
+    "card": "#FFFBF7",         # Warm white
+    "accent1": "#8B5A2B",      # Rich coffee brown
+    "accent2": "#D4A574",      # Caramel
+    "accent3": "#C9B896",      # Creamy beige
+    "text": "#4A3728",         # Dark roast
+    "success": "#7A9B76",      # Sage green
+    "warning": "#D4A574",      # Caramel
+    "danger": "#C17767",       # Terracotta
+    "needs": "#C17767",        # Terracotta
+    "wants": "#D4A574",        # Caramel
+    "savings": "#7A9B76",      # Sage green
+}
+
+# --- CUSTOM STYLING (Coffee theme - compact & cozy) ---
+st.markdown(f"""
     <style>
-    .main { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%); }
-    .stMetric { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .budget-good { color: #00C853; }
-    .budget-warning { color: #FFB300; }
-    .budget-danger { color: #FF5252; }
+    /* Main background */
+    .stApp {{ background: linear-gradient(135deg, {COLORS['bg']} 0%, #EDE5DC 100%); }}
+    
+    /* Compact text sizing */
+    .stApp {{ font-size: 14px; }}
+    h1 {{ font-size: 1.6rem !important; color: {COLORS['text']}; }}
+    h2 {{ font-size: 1.3rem !important; color: {COLORS['text']}; }}
+    h3 {{ font-size: 1.1rem !important; color: {COLORS['accent1']}; }}
+    p, span, label {{ font-size: 0.85rem !important; }}
+    
+    /* Compact metrics */
+    [data-testid="stMetricValue"] {{ font-size: 1.2rem !important; color: {COLORS['accent1']}; }}
+    [data-testid="stMetricLabel"] {{ font-size: 0.75rem !important; }}
+    [data-testid="stMetricDelta"] {{ font-size: 0.7rem !important; }}
+    
+    /* Cards */
+    .stMetric {{ 
+        background: {COLORS['card']}; 
+        padding: 10px; 
+        border-radius: 10px; 
+        box-shadow: 0 2px 6px rgba(74,55,40,0.1);
+        border: 1px solid {COLORS['accent3']};
+    }}
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {{ background: {COLORS['card']}; }}
+    [data-testid="stSidebar"] h1 {{ color: {COLORS['accent1']}; }}
+    
+    /* Buttons */
+    .stButton > button {{
+        background: {COLORS['accent1']};
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        padding: 0.4rem 1rem;
+    }}
+    .stButton > button:hover {{ background: {COLORS['text']}; }}
+    
+    /* Input fields */
+    .stSelectbox, .stNumberInput, .stTextInput {{ font-size: 0.85rem; }}
+    
+    /* Progress bars */
+    .stProgress > div > div {{ background: {COLORS['accent2']}; }}
+    
+    /* Expander */
+    .streamlit-expanderHeader {{ font-size: 0.9rem !important; color: {COLORS['accent1']}; }}
+    
+    /* Dataframe */
+    .stDataFrame {{ font-size: 0.8rem; }}
+    
+    /* Reduce spacing */
+    .block-container {{ padding-top: 1rem; padding-bottom: 1rem; }}
+    .element-container {{ margin-bottom: 0.5rem; }}
+    
+    /* Divider */
+    hr {{ border-color: {COLORS['accent3']}; margin: 0.8rem 0; }}
     </style>
     """, unsafe_allow_html=True)
 
 def get_spending_score(savings_rate):
-    """Calculate a financial health score (Rocket Money style)"""
-    if savings_rate >= 25: return ("A+", "🌟", "#00C853", "Excellent! You're crushing it!")
-    elif savings_rate >= 20: return ("A", "✨", "#4CAF50", "Great job! On track with 50/30/20")
-    elif savings_rate >= 15: return ("B", "👍", "#8BC34A", "Good! Room for improvement")
-    elif savings_rate >= 10: return ("C", "😐", "#FFB300", "Fair. Try to save more")
-    elif savings_rate >= 5: return ("D", "⚠️", "#FF9800", "Warning: Low savings rate")
-    else: return ("F", "🚨", "#FF5252", "Critical: You're overspending!")
+    """Calculate a financial health score"""
+    if savings_rate >= 25: return ("A+", "🌟", COLORS['success'], "Excellent! You're crushing it!")
+    elif savings_rate >= 20: return ("A", "✨", COLORS['success'], "Great job! On track!")
+    elif savings_rate >= 15: return ("B", "👍", "#A8C69F", "Good! Room to grow")
+    elif savings_rate >= 10: return ("C", "😐", COLORS['warning'], "Fair. Try to save more")
+    elif savings_rate >= 5: return ("D", "⚠️", COLORS['warning'], "Warning: Low savings")
+    else: return ("F", "🚨", COLORS['danger'], "Critical: Overspending!")
 
 # --- GOOGLE SHEETS CONNECTION ---
 # In your secrets.toml or Streamlit Cloud, you must provide 'spreadsheet' and 'worksheet'
@@ -161,7 +229,7 @@ if page == "Log Paycheck":
             category_totals['Icon'] = category_totals['Category'].map(lambda x: CATEGORY_ICONS.get(x, "📦") + " " + x)
             fig_pie = px.pie(category_totals, values='Amount', names='Icon', 
                            title="Where Your Money Went",
-                           color_discrete_sequence=px.colors.qualitative.Set3)
+                           color_discrete_sequence=['#8B5A2B', '#D4A574', '#C9B896', '#C17767', '#7A9B76', '#A67B5B', '#DEB887', '#BC8F8F', '#D2B48C', '#C4A484', '#BDB76B', '#8FBC8F', '#CD853F'])
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_pie, use_container_width=True)
         
@@ -173,7 +241,7 @@ if page == "Log Paycheck":
                 st.markdown(f"{icon} **{row['Category']}**: ${row['Amount']:,.2f}")
     
     st.divider()
-    
+
     # --- BUDGET PROGRESS BARS (Rocket Money style) ---
     st.subheader("📈 Budget Progress")
     
@@ -190,10 +258,10 @@ if page == "Log Paycheck":
         wants_pct = min((wants_val / wants_target) * 100, 150) if wants_target > 0 else 0
         savings_pct = min((savings_val / savings_target) * 100, 150) if savings_target > 0 else 0
         
-        col_a, col_b, col_c = st.columns(3)
-        
-        with col_a:
-            st.markdown("### 🏠 Needs (50%)")
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        st.markdown("### 🏠 Needs (50%)")
             color = "normal" if needs_pct <= 100 else "inverse"
             st.metric("Spent", f"${needs_val:,.2f}", f"{needs_pct:.0f}% of budget", delta_color=color)
             st.progress(min(needs_pct / 100, 1.0))
@@ -202,8 +270,8 @@ if page == "Log Paycheck":
             elif needs_pct > 80:
                 st.warning("⚡ Getting close to limit")
         
-        with col_b:
-            st.markdown("### 🛍️ Wants (30%)")
+    with col_b:
+        st.markdown("### 🛍️ Wants (30%)")
             color = "normal" if wants_pct <= 100 else "inverse"
             st.metric("Spent", f"${wants_val:,.2f}", f"{wants_pct:.0f}% of budget", delta_color=color)
             st.progress(min(wants_pct / 100, 1.0))
@@ -212,8 +280,8 @@ if page == "Log Paycheck":
             elif wants_pct > 80:
                 st.warning("⚡ Getting close to limit")
         
-        with col_c:
-            st.markdown("### 🏦 Savings (20%)")
+    with col_c:
+        st.markdown("### 🏦 Savings (20%)")
             color = "normal" if savings_val >= 0 else "inverse"
             st.metric("Remaining", f"${savings_val:,.2f}", f"{savings_pct:.0f}% of target", delta_color=color)
             st.progress(min(max(savings_pct / 100, 0), 1.0))
@@ -223,7 +291,7 @@ if page == "Log Paycheck":
                 st.success("✅ Savings goal met!")
         
         # --- FINANCIAL HEALTH SCORE (Rocket Money style) ---
-        st.divider()
+    st.divider()
         savings_rate = (savings_val / total_income) * 100 if total_income > 0 else 0
         grade, emoji, color, message = get_spending_score(savings_rate)
         
@@ -338,11 +406,11 @@ elif page == "Analytics Dashboard":
             # Stacked area chart for spending over time
             fig_area = go.Figure()
             fig_area.add_trace(go.Scatter(x=df['Month'], y=df['Needs'], name='Needs', 
-                                         fill='tonexty', mode='lines', line=dict(color='#FF6B6B')))
+                                         fill='tonexty', mode='lines', line=dict(color=COLORS['needs'])))
             fig_area.add_trace(go.Scatter(x=df['Month'], y=df['Needs'] + df['Wants'], name='Wants', 
-                                         fill='tonexty', mode='lines', line=dict(color='#4ECDC4')))
+                                         fill='tonexty', mode='lines', line=dict(color=COLORS['wants'])))
             fig_area.add_trace(go.Scatter(x=df['Month'], y=df[income_col], name='Income', 
-                                         mode='lines+markers', line=dict(color='#45B7D1', width=3)))
+                                         mode='lines+markers', line=dict(color=COLORS['accent1'], width=3)))
             fig_area.update_layout(title="Income vs Spending Over Time", 
                                   xaxis_title="Month", yaxis_title="Amount ($)")
             st.plotly_chart(fig_area, use_container_width=True)
@@ -350,12 +418,12 @@ elif page == "Analytics Dashboard":
         with col_pie:
             # Latest month breakdown
             breakdown = pd.DataFrame({
-                'Category': ['Needs', 'Wants', 'Savings'],
+            'Category': ['Needs', 'Wants', 'Savings'],
                 'Amount': [latest['Needs'], latest['Wants'], max(latest['Savings'], 0)]
             })
             fig_donut = px.pie(breakdown, values='Amount', names='Category', hole=0.5,
                               title=f"Latest Month Breakdown ({latest['Month']})",
-                              color_discrete_map={'Needs': '#FF6B6B', 'Wants': '#4ECDC4', 'Savings': '#45B7D1'})
+                              color_discrete_map={'Needs': COLORS['needs'], 'Wants': COLORS['wants'], 'Savings': COLORS['savings']})
             st.plotly_chart(fig_donut, use_container_width=True)
         
         st.divider()
@@ -375,8 +443,8 @@ elif page == "Analytics Dashboard":
         # Savings over time line chart
         fig_savings = px.line(df, x='Month', y='Savings', title="Savings Over Time",
                              markers=True, line_shape='spline')
-        fig_savings.update_traces(line_color='#45B7D1', line_width=3)
-        fig_savings.add_hline(y=avg_savings, line_dash="dash", line_color="gray",
+        fig_savings.update_traces(line_color=COLORS['savings'], line_width=3)
+        fig_savings.add_hline(y=avg_savings, line_dash="dash", line_color=COLORS['accent1'],
                              annotation_text=f"Average: ${avg_savings:,.0f}")
         st.plotly_chart(fig_savings, use_container_width=True)
         
