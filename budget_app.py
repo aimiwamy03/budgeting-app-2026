@@ -115,13 +115,19 @@ if page == "Log Paycheck":
         side_income = st.number_input("Side Income", min_value=0.0, step=50.0)
     
     total_income = paycheck_1 + paycheck_2 + side_income
-    st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
     
     # Build the database key
     month_num = months.index(selected_month) + 1
     db_month_key = f"{selected_year}-{month_num:02d}"
     
-    overwrite = st.checkbox("Overwrite if entry already exists", value=False)
+    # --- TOP SAVE BUTTON & INCOME DISPLAY ---
+    col_metric, col_save = st.columns([2, 1])
+    with col_metric:
+        st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
+    with col_save:
+        overwrite = st.checkbox("Overwrite existing", value=False)
+        save_top = st.button("💾 Quick Save", use_container_width=True, key="save_top")
+    
     st.divider()
     
     # --- EXPENSE TRACKER (Synced with Google Sheets) ---
@@ -324,8 +330,11 @@ if page == "Log Paycheck":
         st.info("Enter your income above to see budget progress")
 
     notes = st.text_area("Notes")
+    
+    save_bottom = st.button("🚀 Save to Google Sheets", key="save_bottom")
 
-    if st.button("🚀 Save to Google Sheets"):
+    # Handle save from either top or bottom button
+    if save_top or save_bottom:
         # Fetch existing data to check for duplicates and append
         existing_data = get_data()
         
