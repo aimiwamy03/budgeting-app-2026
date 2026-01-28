@@ -76,9 +76,48 @@ def get_fresh_data():
     """Get data without cache - use when checking before save"""
     return conn.read(ttl=0)
 
-# --- SESSION STATE: EXPENSES ---
+# --- EXPENSES: GOOGLE SHEETS FUNCTIONS ---
+@st.cache_data(ttl=30)
+def load_expenses_from_sheets():
+    """Load expenses from Google Sheets 'Expenses' worksheet"""
+    try:
+        df = conn.read(worksheet="Expenses", ttl=0)
+        if df is not None and not df.empty:
+            # Convert to list of dicts
+            expenses = df.to_dict('records')
+            # Clean up the data
+            for e in expenses:
+                e['amount'] = float(e.get('amount', 0) or 0)
+            return expenses
+        return []
+    except Exception:
+        # Worksheet doesn't exist yet - that's ok
+        return []
+
+def save_expenses_to_sheets(expenses_list):
+    """Save all expenses to Google Sheets 'Expenses' worksheet"""
+    if not expenses_list:
+        # Create empty DataFrame with columns
+        df = pd.DataFrame(columns=['month', 'date', 'category', 'description', 'amount', 'payment'])
+    else:
+        df = pd.DataFrame(expenses_list)
+    
+    try:
+        conn.update(worksheet="Expenses", data=df)
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "worksheet not found" in error_msg or "worksheetnotfound" in error_msg:
+            st.error("⚠️ **Setup Required:** Please create a new worksheet/tab named **'Expenses'** in your Google Sheet, then try again.")
+            st.info("💡 In Google Sheets: Click the **+** button at the bottom to add a new sheet, then rename it to **Expenses**")
+        else:
+            st.error(f"Error saving expenses: {e}")
+        return False
+
+# --- SESSION STATE: EXPENSES (loaded from Google Sheets) ---
 if 'expenses' not in st.session_state:
-    st.session_state.expenses = []  # List of dicts: {month, date, category, description, amount, payment}
+    st.session_state.expenses = load_expenses_from_sheets()
 
 if 'selected_month' not in st.session_state:
     st.session_state.selected_month = datetime.now().strftime("%B")
@@ -332,7 +371,11 @@ elif page == "📝 Expenses":
                     "payment": exp_payment
                 }
                 st.session_state.expenses.append(new_expense)
-                st.success(f"✅ Added: {exp_description} - ${exp_amount:.2f}")
+                # Save to Google Sheets immediately
+                if save_expenses_to_sheets(st.session_state.expenses):
+                    st.success(f"✅ Added & saved: {exp_description} - ${exp_amount:.2f}")
+                else:
+                    st.warning(f"Added locally but failed to sync to Google Sheets")
                 st.rerun()
             else:
                 st.warning("Please enter an amount greater than 0")
@@ -366,7 +409,7 @@ elif page == "📝 Expenses":
         )
         
         # Update session state when edited
-        if st.button("💾 Save Changes", use_container_width=True):
+        if st.button("💾 Save Changes to Google Sheets", use_container_width=True):
             # Remove old expenses for this month
             st.session_state.expenses = [e for e in st.session_state.expenses if e.get('month') != db_month_key]
             
@@ -381,7 +424,12 @@ elif page == "📝 Expenses":
                         "amount": float(row['Amount']),
                         "payment": row['Payment']
                     })
-            st.success("✅ Changes saved!")
+            
+            # Save to Google Sheets
+            if save_expenses_to_sheets(st.session_state.expenses):
+                st.success("✅ Changes saved to Google Sheets!")
+            else:
+                st.warning("Saved locally but failed to sync to Google Sheets")
             st.rerun()
         
         st.divider()
