@@ -258,10 +258,10 @@ if page == "Log Paycheck":
         wants_pct = min((wants_val / wants_target) * 100, 150) if wants_target > 0 else 0
         savings_pct = min((savings_val / savings_target) * 100, 150) if savings_target > 0 else 0
         
-    col_a, col_b, col_c = st.columns(3)
-    
-    with col_a:
-        st.markdown("### 🏠 Needs (50%)")
+        col_a, col_b, col_c = st.columns(3)
+        
+        with col_a:
+            st.markdown("### 🏠 Needs (50%)")
             color = "normal" if needs_pct <= 100 else "inverse"
             st.metric("Spent", f"${needs_val:,.2f}", f"{needs_pct:.0f}% of budget", delta_color=color)
             st.progress(min(needs_pct / 100, 1.0))
@@ -270,8 +270,8 @@ if page == "Log Paycheck":
             elif needs_pct > 80:
                 st.warning("⚡ Getting close to limit")
         
-    with col_b:
-        st.markdown("### 🛍️ Wants (30%)")
+        with col_b:
+            st.markdown("### 🛍️ Wants (30%)")
             color = "normal" if wants_pct <= 100 else "inverse"
             st.metric("Spent", f"${wants_val:,.2f}", f"{wants_pct:.0f}% of budget", delta_color=color)
             st.progress(min(wants_pct / 100, 1.0))
@@ -280,8 +280,8 @@ if page == "Log Paycheck":
             elif wants_pct > 80:
                 st.warning("⚡ Getting close to limit")
         
-    with col_c:
-        st.markdown("### 🏦 Savings (20%)")
+        with col_c:
+            st.markdown("### 🏦 Savings (20%)")
             color = "normal" if savings_val >= 0 else "inverse"
             st.metric("Remaining", f"${savings_val:,.2f}", f"{savings_pct:.0f}% of target", delta_color=color)
             st.progress(min(max(savings_pct / 100, 0), 1.0))
@@ -291,7 +291,7 @@ if page == "Log Paycheck":
                 st.success("✅ Savings goal met!")
         
         # --- FINANCIAL HEALTH SCORE (Rocket Money style) ---
-    st.divider()
+        st.divider()
         savings_rate = (savings_val / total_income) * 100 if total_income > 0 else 0
         grade, emoji, color, message = get_spending_score(savings_rate)
         
