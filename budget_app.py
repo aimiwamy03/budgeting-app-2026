@@ -175,15 +175,35 @@ if page == "📊 Budget":
     st.header("📊 Monthly Budget")
     st.caption(f"Tracking: **{db_month_key}**")
     
+    # --- LOAD EXISTING DATA FOR THIS MONTH ---
+    existing_budget = get_data()
+    month_data = None
+    if existing_budget is not None and not existing_budget.empty and 'Month' in existing_budget.columns:
+        month_row = existing_budget[existing_budget['Month'] == db_month_key]
+        if not month_row.empty:
+            month_data = month_row.iloc[0]
+    
+    # Get default values from saved data (or 0 if no data)
+    default_paycheck1 = float(month_data['Paycheck1']) if month_data is not None and 'Paycheck1' in month_data else 0.0
+    default_paycheck2 = float(month_data['Paycheck2']) if month_data is not None and 'Paycheck2' in month_data else 0.0
+    default_side_income = float(month_data['SideIncome']) if month_data is not None and 'SideIncome' in month_data else 0.0
+    default_notes = str(month_data['Notes']) if month_data is not None and 'Notes' in month_data and pd.notna(month_data['Notes']) else ""
+    
+    # Show status
+    if month_data is not None:
+        st.success(f"✅ Loaded saved data for {db_month_key}")
+    else:
+        st.info(f"📝 No saved data for {db_month_key} yet")
+    
     # --- INCOME SECTION ---
     st.subheader("💵 Income")
     col3, col4, col5 = st.columns(3)
     with col3:
-        paycheck_1 = st.number_input("1st Paycheck", min_value=0.0, step=100.0)
+        paycheck_1 = st.number_input("1st Paycheck", min_value=0.0, step=100.0, value=default_paycheck1)
     with col4:
-        paycheck_2 = st.number_input("2nd Paycheck", min_value=0.0, step=100.0)
+        paycheck_2 = st.number_input("2nd Paycheck", min_value=0.0, step=100.0, value=default_paycheck2)
     with col5:
-        side_income = st.number_input("Side Income", min_value=0.0, step=100.0)
+        side_income = st.number_input("Side Income", min_value=0.0, step=100.0, value=default_side_income)
     
     total_income = paycheck_1 + paycheck_2 + side_income
     
@@ -191,7 +211,7 @@ if page == "📊 Budget":
     with col_metric:
         st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
     with col_save:
-        overwrite = st.checkbox("Overwrite existing", value=False)
+        overwrite = st.checkbox("Overwrite existing", value=True if month_data is not None else False)
         save_top = st.button("💾 Quick Save", use_container_width=True, key="save_top")
     
     st.divider()
@@ -290,7 +310,7 @@ if page == "📊 Budget":
     
     st.divider()
     
-    notes = st.text_area("Notes")
+    notes = st.text_area("Notes", value=default_notes)
     save_bottom = st.button("🚀 Save to Google Sheets", key="save_bottom")
     
     # Handle save
