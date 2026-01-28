@@ -12,7 +12,7 @@ st.set_page_config(page_title="Cloud Budget Tracker", layout="wide", page_icon="
 NEEDS_CATEGORIES = ["Housing", "Utilities", "Groceries", "Transportation", "Insurance", "Healthcare", "Subscriptions"]
 WANTS_CATEGORIES = ["Food/Dining", "Shopping", "Entertainment", "Travel", "Personal Care", "Misc"]
 ALL_CATEGORIES = NEEDS_CATEGORIES + WANTS_CATEGORIES
-PAYMENT_METHODS = ["Credit", "Debit", "Cash", "Venmo", "Zelle", "Apple Pay", "Other"]  # Credit first (default)
+PAYMENT_METHODS = ["Credit", "Debit", "Cash", "Venmo", "Zelle", "Apple Pay", "Other"]
 
 # Category icons for visual appeal
 CATEGORY_ICONS = {
@@ -24,48 +24,38 @@ CATEGORY_ICONS = {
 
 # --- COFFEE PALETTE ---
 COLORS = {
-    "bg": "#F5EDE4",           # Soft latte/cream
-    "card": "#FFFFFF",         # Pure white
-    "accent1": "#FAFF7F",      # Lime yellow (highlight)
-    "accent2": "#0C9762",      # Green (positive/savings)
-    "gray": "#D4C4B5",         # Warm gray/beige
-    "text": "#3D2B1F",         # Coffee brown text
-    "text_light": "#8B7355",   # Lighter brown
-    "needs": "#C17767",        # Terracotta
-    "wants": "#D4A574",        # Caramel
-    "savings": "#7A9B76",      # Sage green
-    "danger": "#C17767",       # Terracotta
-    "warning": "#D4A574",      # Caramel
-    "success": "#7A9B76",      # Sage green
+    "bg": "#F5EDE4",
+    "card": "#FFFFFF",
+    "accent1": "#FAFF7F",
+    "accent2": "#0C9762",
+    "gray": "#D4C4B5",
+    "text": "#3D2B1F",
+    "text_light": "#8B7355",
+    "needs": "#C17767",
+    "wants": "#D4A574",
+    "savings": "#7A9B76",
+    "danger": "#C17767",
+    "warning": "#D4A574",
+    "success": "#7A9B76",
 }
 
-# --- MODERN MINIMAL STYLING (Clean, simple) ---
+# --- MODERN MINIMAL STYLING ---
 st.markdown(f"""
     <style>
-    /* Main background */
     .stApp {{ background: {COLORS['bg']}; }}
-    
-    /* Sidebar */
     section[data-testid="stSidebar"] {{ background: {COLORS['card']}; }}
-    
-    /* Buttons - lime yellow accent */
     .stButton > button {{
         background: {COLORS['accent1']} !important;
         color: {COLORS['text']} !important;
         border: none !important;
         border-radius: 12px !important;
     }}
-    .stButton > button:hover {{ 
-        background: #E8EB6F !important;
-    }}
-    
-    /* Progress bars - green */
+    .stButton > button:hover {{ background: #E8EB6F !important; }}
     .stProgress > div > div > div {{ background: {COLORS['accent2']} !important; }}
     </style>
     """, unsafe_allow_html=True)
 
 def get_spending_score(savings_rate):
-    """Calculate a financial health score"""
     if savings_rate >= 25: return ("A+", "🌟", COLORS['success'], "Excellent! You're crushing it!")
     elif savings_rate >= 20: return ("A", "✨", COLORS['success'], "Great job! On track!")
     elif savings_rate >= 15: return ("B", "👍", "#7AB85C", "Good! Room to grow")
@@ -73,38 +63,75 @@ def get_spending_score(savings_rate):
     elif savings_rate >= 5: return ("D", "⚠️", COLORS['warning'], "Warning: Low savings")
     else: return ("F", "🚨", COLORS['danger'], "Critical: Overspending!")
 
-# Chart color palette (matching the modern theme)
 CHART_COLORS = ['#0C9762', '#FAFF7F', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DFE6E9', '#74B9FF', '#A29BFE']
 
 # --- GOOGLE SHEETS CONNECTION ---
-# In your secrets.toml or Streamlit Cloud, you must provide 'spreadsheet' and 'worksheet'
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_data():
-    return conn.read(ttl="10m") # Cache data for 10 mins
+    return conn.read(ttl="10m")
+
+# --- SESSION STATE: EXPENSES ---
+if 'expenses' not in st.session_state:
+    st.session_state.expenses = []  # List of dicts: {month, date, category, description, amount, payment}
+
+if 'selected_month' not in st.session_state:
+    st.session_state.selected_month = datetime.now().strftime("%B")
+
+if 'selected_year' not in st.session_state:
+    st.session_state.selected_year = datetime.now().year
+
+def get_month_key():
+    return f"{st.session_state.selected_month} {st.session_state.selected_year}"
+
+def get_month_expenses():
+    """Get expenses for the currently selected month"""
+    month_key = get_month_key()
+    return [e for e in st.session_state.expenses if e.get('month') == month_key]
+
+def calc_expense_totals():
+    """Calculate Needs and Wants totals from expenses"""
+    month_expenses = get_month_expenses()
+    needs = sum(e['amount'] for e in month_expenses if e['category'] in NEEDS_CATEGORIES)
+    wants = sum(e['amount'] for e in month_expenses if e['category'] in WANTS_CATEGORIES)
+    return needs, wants
 
 # --- SIDEBAR ---
 st.sidebar.title("☁️ Cloud Budget")
-page = st.sidebar.radio("Go to", ["Log Paycheck", "Analytics Dashboard"])
+page = st.sidebar.radio("Go to", ["📊 Budget", "📝 Expenses", "📈 Analytics"])
 
-current_month_name = datetime.now().strftime("%B %Y")
+# Month/Year selector (shared across pages)
+st.sidebar.divider()
+st.sidebar.subheader("📅 Period")
+months = ["January", "February", "March", "April", "May", "June", 
+          "July", "August", "September", "October", "November", "December"]
+current_month_idx = months.index(st.session_state.selected_month)
 
-if page == "Log Paycheck":
+selected_month = st.sidebar.selectbox("Month", months, index=current_month_idx, key="month_select")
+selected_year = st.sidebar.selectbox("Year", [2025, 2026, 2027], 
+                                     index=[2025, 2026, 2027].index(st.session_state.selected_year), 
+                                     key="year_select")
+
+# Update session state when changed
+if selected_month != st.session_state.selected_month:
+    st.session_state.selected_month = selected_month
+if selected_year != st.session_state.selected_year:
+    st.session_state.selected_year = selected_year
+
+db_month_key = get_month_key()
+
+# Show expense count in sidebar
+month_expenses = get_month_expenses()
+st.sidebar.metric("📝 Expenses This Month", len(month_expenses))
+
+# ============================================================
+# PAGE 1: BUDGET
+# ============================================================
+if page == "📊 Budget":
     st.header("📊 Monthly Budget")
+    st.caption(f"Tracking: **{db_month_key}**")
     
-    # --- ROW 1: Month & Year ---
-    months = ["January", "February", "March", "April", "May", "June", 
-              "July", "August", "September", "October", "November", "December"]
-    current_month_idx = datetime.now().month - 1
-    current_year = datetime.now().year
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        selected_month = st.selectbox("Month", months, index=current_month_idx)
-    with col2:
-        selected_year = st.selectbox("Year", [2025, 2026, 2027], index=1)
-    
-    # --- ROW 2: Income ---
+    # --- INCOME SECTION ---
     st.subheader("💵 Income")
     col3, col4, col5 = st.columns(3)
     with col3:
@@ -112,16 +139,11 @@ if page == "Log Paycheck":
     with col4:
         paycheck_2 = st.number_input("2nd Paycheck", min_value=0.0, step=100.0)
     with col5:
-        side_income = st.number_input("Side Income", min_value=0.0, step=50.0)
+        side_income = st.number_input("Side Income", min_value=0.0, step=100.0)
     
     total_income = paycheck_1 + paycheck_2 + side_income
     
-    # Build the database key
-    month_num = months.index(selected_month) + 1
-    db_month_key = f"{selected_year}-{month_num:02d}"
-    
-    # --- TOP SAVE BUTTON & INCOME DISPLAY ---
-    col_metric, col_save = st.columns([2, 1])
+    col_metric, col_save = st.columns([3, 1])
     with col_metric:
         st.metric("💰 Total Monthly Income", f"${total_income:,.2f}")
     with col_save:
@@ -130,139 +152,13 @@ if page == "Log Paycheck":
     
     st.divider()
     
-    # --- EXPENSE TRACKER (Synced with Google Sheets) ---
-    st.subheader("📝 Expense Tracker")
-    st.caption("Add your expenses below. They sync to Google Sheets automatically!")
-    
-    # Load expenses from Google Sheets (using worksheet "Expenses")
-    @st.cache_data(ttl=60)
-    def get_expenses():
-        try:
-            return conn.read(worksheet="Expenses", ttl=60)
-        except:
-            return pd.DataFrame(columns=["Month", "Date", "Category", "Description", "Amount", "Payment"])
-    
-    def save_expenses(df):
-        conn.update(worksheet="Expenses", data=df)
-        st.cache_data.clear()
-    
-    all_expenses = get_expenses()
-    # Filter for current month
-    if all_expenses is not None and not all_expenses.empty and 'Month' in all_expenses.columns:
-        expenses_df = all_expenses[all_expenses['Month'] == db_month_key].copy()
-    else:
-        expenses_df = pd.DataFrame(columns=["Month", "Date", "Category", "Description", "Amount", "Payment"])
-    
-    # --- ADD NEW EXPENSE ---
-    with st.expander("➕ Add New Expense", expanded=True):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            exp_date = st.date_input("Date", value=date.today())
-        with col2:
-            exp_description = st.text_input("Description")
-        with col3:
-            exp_payment = st.selectbox("Payment Method", PAYMENT_METHODS)
-        
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            exp_category = st.selectbox("Category", ALL_CATEGORIES)
-        with col5:
-            exp_amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
-        with col6:
-            st.write("")
-            if st.button("➕ Add Expense", use_container_width=True):
-                if exp_amount > 0:
-                    new_expense = pd.DataFrame([{
-                        "Month": db_month_key,
-                        "Date": exp_date.strftime("%m/%d/%y"),
-                        "Category": exp_category,
-                        "Description": exp_description,
-                        "Amount": exp_amount,
-                        "Payment": exp_payment
-                    }])
-                    # Add to all expenses and save
-                    if all_expenses is None or all_expenses.empty:
-                        updated_expenses = new_expense
-                    else:
-                        updated_expenses = pd.concat([all_expenses, new_expense], ignore_index=True)
-                    save_expenses(updated_expenses)
-                    st.success(f"✅ Added & synced: {exp_description} - ${exp_amount:.2f}")
-                    st.rerun()
-    
-    # --- EDITABLE EXPENSE TABLE ---
-    if not expenses_df.empty:
-        st.markdown("**Edit expenses below** (changes save automatically):")
-        
-        # Make Amount numeric for display
-        display_df = expenses_df.drop(columns=['Month'], errors='ignore').copy()
-        display_df['Amount'] = pd.to_numeric(display_df['Amount'], errors='coerce').fillna(0)
-        
-        edited_df = st.data_editor(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            num_rows="dynamic",
-            column_config={
-                "Category": st.column_config.SelectboxColumn(options=ALL_CATEGORIES),
-                "Payment": st.column_config.SelectboxColumn(options=PAYMENT_METHODS),
-                "Amount": st.column_config.NumberColumn(format="%.2f"),
-            }
-        )
-        
-        # Save button for edits
-        if st.button("💾 Save Changes to Google Sheets"):
-            edited_df['Month'] = db_month_key
-            # Replace this month's expenses in all_expenses
-            other_months = all_expenses[all_expenses['Month'] != db_month_key] if 'Month' in all_expenses.columns else pd.DataFrame()
-            updated_all = pd.concat([other_months, edited_df], ignore_index=True)
-            save_expenses(updated_all)
-            st.success("✅ Changes saved to Google Sheets!")
-            st.rerun()
-        
-        # Calculate totals
-        expenses_df['Amount'] = pd.to_numeric(expenses_df['Amount'], errors='coerce').fillna(0)
-        needs_expenses = expenses_df[expenses_df['Category'].isin(NEEDS_CATEGORIES)]['Amount'].sum()
-        wants_expenses = expenses_df[expenses_df['Category'].isin(WANTS_CATEGORIES)]['Amount'].sum()
-        total_expenses = expenses_df['Amount'].sum()
-    else:
-        st.info("No expenses added yet. Add some above!")
-        needs_expenses = 0.0
-        wants_expenses = 0.0
-        total_expenses = 0.0
-    
-    st.divider()
-    
-    # --- SPENDING INSIGHTS (Rocket Money style) ---
-    if not expenses_df.empty and total_income > 0:
-        st.subheader("📊 Spending Insights")
-        
-        # Category breakdown pie chart
-        col_chart, col_top = st.columns([2, 1])
-        
-        with col_chart:
-            category_totals = expenses_df.groupby('Category')['Amount'].sum().reset_index()
-            category_totals['Icon'] = category_totals['Category'].map(lambda x: CATEGORY_ICONS.get(x, "📦") + " " + x)
-            fig_pie = px.pie(category_totals, values='Amount', names='Icon', 
-                           title="Where Your Money Went",
-                           color_discrete_sequence=CHART_COLORS)
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig_pie, use_container_width=True)
-        
-        with col_top:
-            st.markdown("### 🔥 Top Spending")
-            top_categories = category_totals.nlargest(5, 'Amount')
-            for _, row in top_categories.iterrows():
-                icon = CATEGORY_ICONS.get(row['Category'], "📦")
-                st.markdown(f"{icon} **{row['Category']}**: ${row['Amount']:,.2f}")
-    
-    st.divider()
-
-    # --- BUDGET PROGRESS BARS (Rocket Money style) ---
-    st.subheader("📈 Budget Progress")
-    
-    needs_val = needs_expenses
-    wants_val = wants_expenses
+    # --- GET EXPENSE TOTALS FROM SESSION STATE ---
+    needs_val, wants_val = calc_expense_totals()
+    total_expenses = needs_val + wants_val
     savings_val = total_income - needs_val - wants_val
+    
+    # --- BUDGET PROGRESS ---
+    st.subheader("📈 Budget Progress")
     
     if total_income > 0:
         needs_target = total_income * 0.5
@@ -311,7 +207,7 @@ if page == "Log Paycheck":
             elif savings_rate_pct >= 20:
                 st.success("✅ Goal met!")
         
-        # --- FINANCIAL HEALTH SCORE (Rocket Money style) ---
+        # --- FINANCIAL HEALTH SCORE ---
         st.divider()
         savings_rate = (savings_val / total_income) * 100 if total_income > 0 else 0
         grade, emoji, color, message = get_spending_score(savings_rate)
@@ -321,24 +217,41 @@ if page == "Log Paycheck":
             st.markdown(f"<h1 style='text-align: center; color: {color}; font-size: 72px;'>{grade}</h1>", unsafe_allow_html=True)
             st.markdown(f"<p style='text-align: center; font-size: 24px;'>{emoji}</p>", unsafe_allow_html=True)
         with score_col2:
-            st.markdown(f"### Your Money Score")
+            st.markdown("### Your Money Score")
             st.markdown(f"**{message}**")
             st.markdown(f"Savings Rate: **{savings_rate:.1f}%** of income")
             if savings_rate < 20:
                 st.markdown(f"💡 *Tip: Try to save ${(total_income * 0.2) - savings_val:,.2f} more to hit 20%*")
     else:
         st.info("Enter your income above to see budget progress")
-
-    notes = st.text_area("Notes")
     
-    save_bottom = st.button("🚀 Save to Google Sheets", key="save_bottom")
-
-    # Handle save from either top or bottom button
-    if save_top or save_bottom:
-        # Fetch existing data to check for duplicates and append
-        existing_data = get_data()
+    st.divider()
+    
+    # --- EXPENSE SUMMARY (link to expenses page) ---
+    if len(month_expenses) > 0:
+        st.subheader("📝 Expense Summary")
+        st.caption(f"You have **{len(month_expenses)} expenses** logged for {db_month_key}")
         
-        # Check if sheet is empty or missing 'Month' column
+        # Quick category breakdown
+        expense_df = pd.DataFrame(month_expenses)
+        category_totals = expense_df.groupby('category')['amount'].sum().sort_values(ascending=False)
+        
+        for cat, amt in category_totals.head(5).items():
+            icon = CATEGORY_ICONS.get(cat, "📦")
+            st.markdown(f"{icon} **{cat}**: ${amt:,.2f}")
+        
+        st.info("💡 Go to **📝 Expenses** page to add or edit expenses")
+    else:
+        st.info("💡 No expenses logged yet. Go to **📝 Expenses** page to add some!")
+    
+    st.divider()
+    
+    notes = st.text_area("Notes")
+    save_bottom = st.button("🚀 Save to Google Sheets", key="save_bottom")
+    
+    # Handle save
+    if save_top or save_bottom:
+        existing_data = get_data()
         is_empty = existing_data is None or existing_data.empty or 'Month' not in existing_data.columns
         month_exists = not is_empty and db_month_key in existing_data['Month'].values
         
@@ -355,12 +268,11 @@ if page == "Log Paycheck":
         }])
         
         if month_exists and not overwrite:
-            st.error(f"Entry for {selected_month} {selected_year} already exists! Check 'Overwrite' to update it.")
+            st.error(f"Entry for {db_month_key} already exists! Check 'Overwrite' to update it.")
         else:
             if is_empty:
                 updated_df = new_row
             elif month_exists and overwrite:
-                # Remove old entry and add new one
                 existing_data = existing_data[existing_data['Month'] != db_month_key]
                 updated_df = pd.concat([existing_data, new_row], ignore_index=True)
                 updated_df = updated_df.sort_values('Month').reset_index(drop=True)
@@ -370,28 +282,168 @@ if page == "Log Paycheck":
             
             conn.update(data=updated_df)
             if month_exists and overwrite:
-                st.success(f"✅ Entry for {selected_month} {selected_year} updated!")
+                st.success(f"✅ Entry for {db_month_key} updated!")
             else:
-                st.success(f"✅ Entry for {selected_month} {selected_year} saved!")
+                st.success(f"✅ Entry for {db_month_key} saved!")
             st.balloons()
 
-elif page == "Analytics Dashboard":
+# ============================================================
+# PAGE 2: EXPENSES
+# ============================================================
+elif page == "📝 Expenses":
+    st.header("📝 Expense Tracker")
+    st.caption(f"Logging expenses for: **{db_month_key}**")
+    
+    # --- ADD NEW EXPENSE ---
+    st.subheader("➕ Add New Expense")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        exp_date = st.date_input("Date", value=date.today())
+    with col2:
+        exp_category = st.selectbox("Category", ALL_CATEGORIES)
+    with col3:
+        exp_payment = st.selectbox("Payment Method", PAYMENT_METHODS)
+    
+    col4, col5, col6 = st.columns([2, 1, 1])
+    with col4:
+        exp_description = st.text_input("Description")
+    with col5:
+        exp_amount = st.number_input("Amount", min_value=0.0, step=1.0, format="%.2f")
+    with col6:
+        st.write("")
+        st.write("")
+        if st.button("➕ Add Expense", use_container_width=True):
+            if exp_amount > 0:
+                new_expense = {
+                    "month": db_month_key,
+                    "date": exp_date.strftime("%m/%d/%y"),
+                    "category": exp_category,
+                    "description": exp_description,
+                    "amount": exp_amount,
+                    "payment": exp_payment
+                }
+                st.session_state.expenses.append(new_expense)
+                st.success(f"✅ Added: {exp_description} - ${exp_amount:.2f}")
+                st.rerun()
+            else:
+                st.warning("Please enter an amount greater than 0")
+    
+    st.divider()
+    
+    # --- EXPENSE TABLE ---
+    month_expenses = get_month_expenses()
+    
+    if len(month_expenses) > 0:
+        st.subheader(f"📋 Expenses for {db_month_key}")
+        
+        # Convert to DataFrame for display
+        expense_df = pd.DataFrame(month_expenses)
+        display_cols = ['date', 'category', 'description', 'amount', 'payment']
+        display_df = expense_df[display_cols].copy()
+        display_df.columns = ['Date', 'Category', 'Description', 'Amount', 'Payment']
+        
+        # Use data_editor for editing
+        edited_df = st.data_editor(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            num_rows="dynamic",
+            column_config={
+                "Category": st.column_config.SelectboxColumn(options=ALL_CATEGORIES),
+                "Payment": st.column_config.SelectboxColumn(options=PAYMENT_METHODS),
+                "Amount": st.column_config.NumberColumn(format="%.2f"),
+            },
+            key="expense_editor"
+        )
+        
+        # Update session state when edited
+        if st.button("💾 Save Changes", use_container_width=True):
+            # Remove old expenses for this month
+            st.session_state.expenses = [e for e in st.session_state.expenses if e.get('month') != db_month_key]
+            
+            # Add edited expenses back
+            for _, row in edited_df.iterrows():
+                if pd.notna(row['Amount']) and row['Amount'] > 0:
+                    st.session_state.expenses.append({
+                        "month": db_month_key,
+                        "date": row['Date'],
+                        "category": row['Category'],
+                        "description": row['Description'],
+                        "amount": float(row['Amount']),
+                        "payment": row['Payment']
+                    })
+            st.success("✅ Changes saved!")
+            st.rerun()
+        
+        st.divider()
+        
+        # --- CATEGORY BREAKDOWN ---
+        st.subheader("📊 Category Breakdown")
+        
+        category_totals = expense_df.groupby('category')['amount'].sum().reset_index()
+        category_totals['icon'] = category_totals['category'].map(lambda x: CATEGORY_ICONS.get(x, "📦") + " " + x)
+        
+        col_chart, col_list = st.columns([2, 1])
+        
+        with col_chart:
+            fig_pie = px.pie(category_totals, values='amount', names='icon',
+                           title="Spending by Category",
+                           color_discrete_sequence=CHART_COLORS)
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig_pie, use_container_width=True)
+        
+        with col_list:
+            st.markdown("### 🔥 Top Spending")
+            for _, row in category_totals.nlargest(5, 'amount').iterrows():
+                icon = CATEGORY_ICONS.get(row['category'], "📦")
+                cat_type = "Needs" if row['category'] in NEEDS_CATEGORIES else "Wants"
+                st.markdown(f"{icon} **{row['category']}**: ${row['amount']:,.2f} ({cat_type})")
+        
+        st.divider()
+        
+        # --- TOTALS ---
+        needs_total, wants_total = calc_expense_totals()
+        total_spent = needs_total + wants_total
+        
+        col_t1, col_t2, col_t3 = st.columns(3)
+        col_t1.metric("🏠 Needs Total", f"${needs_total:,.2f}")
+        col_t2.metric("🛍️ Wants Total", f"${wants_total:,.2f}")
+        col_t3.metric("💸 Total Spent", f"${total_spent:,.2f}")
+        
+        st.info("💡 These totals automatically sync to the **📊 Budget** page!")
+    else:
+        st.info("No expenses logged for this month yet. Add some above!")
+        
+        # Quick add suggestions
+        st.markdown("### 💡 Quick Add Ideas")
+        quick_cats = ["Housing", "Groceries", "Food/Dining", "Transportation"]
+        cols = st.columns(4)
+        for i, cat in enumerate(quick_cats):
+            with cols[i]:
+                icon = CATEGORY_ICONS.get(cat, "📦")
+                if st.button(f"{icon} {cat}", key=f"quick_{cat}"):
+                    st.session_state.quick_category = cat
+                    st.rerun()
+
+# ============================================================
+# PAGE 3: ANALYTICS
+# ============================================================
+elif page == "📈 Analytics":
     st.title("📈 Financial Dashboard")
     df = get_data()
 
     if df is None or df.empty or 'Month' not in df.columns:
         st.info("The spreadsheet is empty. Add data to see analytics.")
     else:
-        # Handle both old 'Income' column and new 'TotalIncome' column
         income_col = 'TotalIncome' if 'TotalIncome' in df.columns else 'Income'
         latest = df.iloc[-1]
         
-        # --- MONTH OVER MONTH COMPARISON (Rocket Money style) ---
+        # --- MONTH OVERVIEW ---
         st.subheader("📊 This Month at a Glance")
         
         c1, c2, c3, c4 = st.columns(4)
         
-        # Calculate month-over-month changes
         if len(df) >= 2:
             prev = df.iloc[-2]
             income_change = latest[income_col] - prev[income_col]
@@ -415,19 +467,17 @@ elif page == "Analytics Dashboard":
             st.metric("🏦 Savings", f"${latest['Savings']:,.2f}", 
                      f"${savings_change:+,.0f}" if savings_change != 0 else None)
         
-        # Financial Health Score
         grade, emoji, color, message = get_spending_score(savings_rate)
         st.markdown(f"### {emoji} Financial Health: **{grade}** - {message}")
         
         st.divider()
         
-        # --- SPENDING TRENDS (Rocket Money style) ---
+        # --- SPENDING TRENDS ---
         st.subheader("📈 Spending Trends")
         
         col_line, col_pie = st.columns(2)
         
         with col_line:
-            # Stacked area chart for spending over time
             fig_area = go.Figure()
             fig_area.add_trace(go.Scatter(x=df['Month'], y=df['Needs'], name='Needs', 
                                          fill='tonexty', mode='lines', line=dict(color=COLORS['needs'])))
@@ -440,9 +490,8 @@ elif page == "Analytics Dashboard":
             st.plotly_chart(fig_area, use_container_width=True)
         
         with col_pie:
-            # Latest month breakdown
             breakdown = pd.DataFrame({
-            'Category': ['Needs', 'Wants', 'Savings'],
+                'Category': ['Needs', 'Wants', 'Savings'],
                 'Amount': [latest['Needs'], latest['Wants'], max(latest['Savings'], 0)]
             })
             fig_donut = px.pie(breakdown, values='Amount', names='Category', hole=0.5,
@@ -452,7 +501,7 @@ elif page == "Analytics Dashboard":
         
         st.divider()
         
-        # --- SAVINGS PROGRESS (Rocket Money style) ---
+        # --- SAVINGS PROGRESS ---
         st.subheader("🎯 Savings Journey")
         
         total_saved = df['Savings'].sum()
@@ -464,7 +513,6 @@ elif page == "Analytics Dashboard":
         s2.metric("📊 Avg Monthly Savings", f"${avg_savings:,.2f}")
         s3.metric("📅 Months Tracked", months_tracked)
         
-        # Savings over time line chart
         fig_savings = px.line(df, x='Month', y='Savings', title="Savings Over Time",
                              markers=True, line_shape='spline')
         fig_savings.update_traces(line_color=COLORS['savings'], line_width=3)
